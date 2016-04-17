@@ -34,6 +34,16 @@
   var CLASS_MAIN_CONTENT = '.mdl-layout__content.qor-page';
   var CLASS_HEADER_LOCALE = '.qor-actions__locale';
 
+  function NoLatinBase64(buffer) {
+    var binary = '';
+    var bytes = new Uint8Array(buffer);
+    var len = bytes.byteLength;
+    for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  }
+
   function QorSlideout(element, options) {
     this.$element = $(element);
     this.options = $.extend({}, QorSlideout.DEFAULTS, $.isPlainObject(options) && options);
@@ -224,7 +234,7 @@
                 }
               });
               if (flashStructs.length > 0) {
-                document.cookie = 'qor-flashes=' + btoa(JSON.stringify(flashStructs)) + '; path=' + prefix;
+                document.cookie = 'qor-flashes=' + NoLatinBase64(JSON.stringify(flashStructs)) + '; path=' + prefix;
               }
               _this.refresh();
             }
