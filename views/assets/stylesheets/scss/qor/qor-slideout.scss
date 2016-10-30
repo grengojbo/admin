@@ -17,6 +17,7 @@
   background-color: #fff;
   overflow: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   @include shadow-16dp();
 
   &.is-shown {
@@ -30,6 +31,9 @@
 
     @media (min-width: $layout-screen-size-threshold) {
       width: 50%;
+      &.qor-slideout-mini{
+        width: 480px;
+      }
     }
   }
 
@@ -79,8 +83,8 @@
     }
   }
   .qor-page__header{
-    margin: -16px -24px 32px -24px;
-    position: static;
+    position: relative;
+    top: inherit;
     width: calc(100% + 48px);
     + .qor-page__body{
       padding-top: 0;
@@ -95,4 +99,5 @@
   padding: 0;
   margin: 20px 0;
   box-shadow: none;
+  background-color: transparent;
 }

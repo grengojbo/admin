@@ -2,7 +2,10 @@ package admin
 
 import (
 	"html/template"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 
 	"github.com/jinzhu/inflection"
 	"github.com/qor/qor"
@@ -13,9 +16,10 @@ import (
 
 // Admin is a struct that used to generate admin/api interface
 type Admin struct {
-	Config           *qor.Config
 	SiteName         string
+	Config           *qor.Config
 	I18n             I18n
+	AssetFS          AssetFSInterface
 	menus            []*Menu
 	resources        []*Resource
 	searchResources  []*Resource
@@ -33,11 +37,13 @@ type ResourceNamer interface {
 // New new admin with configuration
 func New(config *qor.Config) *Admin {
 	admin := Admin{
-		funcMaps:         make(template.FuncMap),
 		Config:           config,
+		funcMaps:         make(template.FuncMap),
 		router:           newRouter(),
 		metaConfigorMaps: metaConfigorMaps,
 	}
+
+	admin.SetAssetFS(&AssetFileSystem{})
 	return &admin
 }
 
@@ -50,6 +56,30 @@ func (admin *Admin) SetSiteName(siteName string) {
 // SetAuth set admin's authorization gateway
 func (admin *Admin) SetAuth(auth Auth) {
 	admin.auth = auth
+}
+
+// SetAssetFS set AssetFS for admin
+func (admin *Admin) SetAssetFS(assetFS AssetFSInterface) {
+	admin.AssetFS = assetFS
+	globalAssetFSes = append(globalAssetFSes, assetFS)
+
+	admin.AssetFS.RegisterPath(filepath.Join(root, "app/views/qor"))
+	admin.RegisterViewPath("github.com/qor/admin/views")
+
+	for _, viewPath := range globalViewPaths {
+		admin.RegisterViewPath(viewPath)
+	}
+}
+
+// RegisterViewPath register view path for admin
+func (admin *Admin) RegisterViewPath(pth string) {
+	if admin.AssetFS.RegisterPath(filepath.Join(root, "vendor", pth)) != nil {
+		for _, gopath := range strings.Split(os.Getenv("GOPATH"), ":") {
+			if admin.AssetFS.RegisterPath(filepath.Join(gopath, "src", pth)) == nil {
+				break
+			}
+		}
+	}
 }
 
 // RegisterMetaConfigor register configor for a kind, it will be called when register those kind of metas
@@ -67,8 +97,7 @@ func (admin *Admin) GetRouter() *Router {
 	return admin.router
 }
 
-// NewResource initialize a new qor resource, won't add it to admin, just initialize it
-func (admin *Admin) NewResource(value interface{}, config ...*Config) *Resource {
+func (admin *Admin) newResource(value interface{}, config ...*Config) *Resource {
 	var configuration *Config
 	if len(config) > 0 {
 		configuration = config[0]
@@ -82,7 +111,6 @@ func (admin *Admin) NewResource(value interface{}, config ...*Config) *Resource 
 		Resource:    *resource.New(value),
 		Config:      configuration,
 		cachedMetas: &map[string][]*Meta{},
-		filters:     map[string]*Filter{},
 		admin:       admin,
 	}
 
@@ -119,13 +147,19 @@ func (admin *Admin) NewResource(value interface{}, config ...*Config) *Resource 
 		}
 		return findOneHandler(result, metaValues, context)
 	}
+	return res
+}
 
+// NewResource initialize a new qor resource, won't add it to admin, just initialize it
+func (admin *Admin) NewResource(value interface{}, config ...*Config) *Resource {
+	res := admin.newResource(value, config...)
+	res.configure()
 	return res
 }
 
 // AddResource make a model manageable from admin interface
 func (admin *Admin) AddResource(value interface{}, config ...*Config) *Resource {
-	res := admin.NewResource(value, config...)
+	res := admin.newResource(value, config...)
 
 	if !res.Config.Invisible {
 		var menuName string
@@ -135,7 +169,7 @@ func (admin *Admin) AddResource(value interface{}, config ...*Config) *Resource 
 			menuName = inflection.Plural(res.Name)
 		}
 
-		menu := &Menu{rawPath: res.ToParam(), Name: menuName, Permission: res.Config.Permission}
+		menu := &Menu{rawPath: res.ToParam(), Name: menuName, Permission: res.Config.Permission, Priority: res.Config.Priority}
 		admin.menus = appendMenu(admin.menus, res.Config.Menu, menu)
 
 		res.Action(&Action{

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/jinzhu/gorm"
+	"github.com/qor/admin"
 	"github.com/qor/media_library"
 	"github.com/qor/qor"
-	"github.com/qor/admin"
 	"github.com/qor/qor/test/utils"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -40,7 +40,7 @@ type User struct {
 	Age          uint
 	Role         string
 	Active       bool
-	RegisteredAt time.Time
+	RegisteredAt *time.Time
 	Avatar       media_library.FileSystem
 	CreditCard   CreditCard
 	Addresses    []Address

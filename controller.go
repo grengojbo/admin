@@ -1,8 +1,10 @@
 package admin
 
 import (
+	"mime"
 	"net/http"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/jinzhu/gorm"
@@ -162,12 +164,14 @@ func (ac *controller) Update(context *Context) {
 func (ac *controller) Delete(context *Context) {
 	res := context.Resource
 	status := http.StatusOK
+
 	if context.AddError(res.CallDelete(res.NewStruct(), context.Context)); context.HasError() {
+		context.Flash(string(context.t("qor_admin.form.failed_to_delete", "Failed to delete {{.Name}}", res)), "error")
 		status = http.StatusNotFound
 	}
 
 	responder.With("html", func() {
-		http.Redirect(context.Writer, context.Request, path.Join(ac.GetRouter().Prefix, res.ToParam()), status)
+		http.Redirect(context.Writer, context.Request, path.Join(ac.GetRouter().Prefix, res.ToParam()), http.StatusFound)
 	}).With("json", func() {
 		context.Writer.WriteHeader(status)
 	}).Respond(context.Request)
@@ -210,8 +214,12 @@ func (ac *controller) Action(context *Context) {
 
 func (ac *controller) Asset(context *Context) {
 	file := strings.TrimPrefix(context.Request.URL.Path, ac.GetRouter().Prefix)
-	if filename, err := context.findFile(file); err == nil {
-		http.ServeFile(context.Writer, context.Request, filename)
+
+	if content, err := context.Asset(file); err == nil {
+		if ctype := mime.TypeByExtension(filepath.Ext(file)); ctype != "" {
+			context.Writer.Header().Set("Content-Type", ctype)
+		}
+		context.Writer.Write(content)
 	} else {
 		http.NotFound(context.Writer, context.Request)
 	}

@@ -55,16 +55,19 @@
 
       if (this.isMultipleTemplate) {
         this.$template = $filteredTemplateHtml;
-        $template.remove();
         if ($this.children(options.childrenClass).children(options.itemClass).size()){
           this.template = $filteredTemplateHtml.prop('outerHTML');
           this.parse();
         }
       } else {
-        this.template = $template.filter($this.children(options.childrenClass).children(options.newClass)).prop('outerHTML');
+        this.template = $filteredTemplateHtml.prop('outerHTML');
         $template.data(IS_TEMPLATE, true).hide();
         this.parse();
       }
+
+      // remove hidden empty template, make sure no empty data submit to DB
+      $filteredTemplateHtml.remove();
+
       this.bind();
     },
 
@@ -143,14 +146,10 @@
           }
         }
       } else {
-        // For single fieldset template
-        if (this.$template && this.$template.filter(parentsChildren.children(options.newClass)).is(':hidden')) {
-          this.$template.filter(parentsChildren.children(options.newClass)).show();
-        } else {
-          if ($target.length) {
-            $item = $(this.template.replace(/\{\{index\}\}/g, ++this.index));
-            $target.before($item.show());
-          }
+
+        if ($target.length) {
+          $item = $(this.template.replace(/\{\{index\}\}/g, ++this.index));
+          $target.before($item.show());
         }
       }
 
@@ -166,18 +165,15 @@
       var $item = $(e.target).closest(options.itemClass);
       var $alert;
 
-      if ($item.is(options.newClass)) {
-        // Destroy all JavaScript components within the fieldset
-        $item.trigger('disable').remove();
-      } else {
-        $item.children(':visible').addClass('hidden').hide();
-        $alert = $(options.alertTemplate.replace('{{name}}', this.parseName($item)));
-        $alert.find(options.undoClass).one(EVENT_CLICK, function () {
-          $alert.remove();
-          $item.children('.hidden').removeClass('hidden').show();
-        });
-        $item.append($alert);
-      }
+      $item.children(':visible').addClass('hidden').hide();
+      $alert = $(options.alertTemplate.replace('{{name}}', this.parseName($item)));
+      $alert.find(options.undoClass).one(EVENT_CLICK, function () {
+        $item.find('> .qor-fieldset__alert').remove();
+        $item.children('.hidden').removeClass('hidden').show();
+
+      });
+
+      $item.append($alert);
     },
 
     parseName: function ($item) {
@@ -191,7 +187,7 @@
     destroy: function () {
       this.unbind();
       this.$element.removeData(NAMESPACE);
-    },
+    }
   };
 
   QorReplicator.DEFAULTS = {
@@ -200,7 +196,7 @@
     addClass: false,
     delClass: false,
     childrenClass: false,
-    alertTemplate: '',
+    alertTemplate: ''
   };
 
   QorReplicator.plugin = function (options) {
@@ -233,7 +229,7 @@
               '<input type="hidden" name="{{name}}._destroy" value="1">' +
               '<button class="mdl-button mdl-button--accent mdl-js-button mdl-js-ripple-effect qor-fieldset__undo" type="button">Undo delete</button>' +
             '</div>'
-          ),
+          )
         };
 
     $(document).

@@ -18,8 +18,10 @@
   var EVENT_ENABLE = 'enable.' + NAMESPACE;
   var EVENT_DISABLE = 'disable.' + NAMESPACE;
   var EVENT_CLICK = 'click.' + NAMESPACE;
+  var EVENT_SELECTOR_CHANGE = 'selectorChanged.' + NAMESPACE;
   var CLASS_OPEN = 'open';
   var CLASS_ACTIVE = 'active';
+  var CLASS_HOVER = 'hover';
   var CLASS_SELECTED = 'selected';
   var CLASS_DISABLED = 'disabled';
   var CLASS_CLEARABLE = 'clearable';
@@ -28,6 +30,7 @@
   var SELECTOR_LABEL = '.qor-selector-label';
   var SELECTOR_CLEAR = '.qor-selector-clear';
   var SELECTOR_MENU = '.qor-selector-menu';
+  var CLASS_BOTTOMSHEETS = '.qor-bottomsheets';
 
   function QorSelector(element, options) {
     this.options = options;
@@ -50,6 +53,13 @@
       var $selector = $(QorSelector.TEMPLATE);
       var alignedClass = this.options.aligned + '-aligned';
       var data = {};
+      var eleData = $this.data();
+      var hover = eleData.hover;
+      var paramName = $this.attr('name');
+
+      this.isBottom = eleData.position == 'bottom';
+
+      hover && $selector.addClass(CLASS_HOVER);
 
       $selector.addClass(alignedClass).find(SELECTOR_MENU).html(function () {
         var list = [];
@@ -66,6 +76,7 @@
             classNames.push(CLASS_SELECTED);
             data.value = value;
             data.label = label;
+            data.paramName = paramName;
           }
 
           if (disabled) {
@@ -77,6 +88,7 @@
               (classNames.length ? ' class="' + classNames.join(' ') + '"' : '') +
               ' data-value="' + value + '"' +
               ' data-label="' + label + '"' +
+              ' data-param-name="' + paramName + '"' +
             '>' +
               label +
             '</li>'
@@ -88,6 +100,7 @@
 
       this.$selector = $selector;
       $this.hide().after($selector);
+      $selector.find(SELECTOR_TOGGLE).data('paramName', paramName);
       this.pick(data, true);
       this.bind();
     },
@@ -129,6 +142,7 @@
     pick: function (data, initialized) {
       var $selector = this.$selector;
       var selected = !!data.value;
+      var $element = this.$element;
 
       $selector.
         find(SELECTOR_TOGGLE).
@@ -145,11 +159,21 @@
             siblings(SELECTOR_SELECTED).
             removeClass(CLASS_SELECTED);
 
-        this.$element.val(data.value).trigger('change');
+        $element.val(data.value);
+
+
+        if ($element.closest(CLASS_BOTTOMSHEETS).length && !$element.closest('[data-toggle="qor.filter"]').length) {
+          // If action is in bottom sheet, will trigger filterChanged.qor.selector event, add passed data.value parameter to event.
+          $(CLASS_BOTTOMSHEETS).trigger(EVENT_SELECTOR_CHANGE, [data.value, data.paramName]);
+        } else {
+          $element.trigger('change');
+        }
       }
     },
 
     clear: function () {
+      var $element = this.$element;
+
       this.$selector.
         find(SELECTOR_TOGGLE).
         removeClass(CLASS_ACTIVE).
@@ -162,7 +186,7 @@
           children(SELECTOR_SELECTED).
           removeClass(CLASS_SELECTED);
 
-      this.$element.val('').trigger('change');
+      $element.val('').trigger('change');
     },
 
     open: function () {
@@ -172,21 +196,27 @@
 
       // Open the current dropdown
       this.$selector.addClass(CLASS_OPEN);
+      if (this.isBottom) {
+        this.$selector.addClass('bottom');
+      }
     },
 
     close: function () {
       this.$selector.removeClass(CLASS_OPEN);
+      if (this.isBottom) {
+        this.$selector.removeClass('bottom');
+      }
     },
 
     destroy: function () {
       this.unbuild();
       this.$element.removeData(NAMESPACE);
-    },
+    }
   };
 
   QorSelector.DEFAULTS = {
     aligned: 'left',
-    clearable: false,
+    clearable: false
   };
 
   QorSelector.TEMPLATE = (

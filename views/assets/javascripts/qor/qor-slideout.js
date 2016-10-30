@@ -17,38 +17,30 @@
   var FormData = window.FormData;
   var _ = window._;
   var NAMESPACE = 'qor.slideout';
-  var EVENT_ENABLE = 'enable.' + NAMESPACE;
-  var EVENT_DISABLE = 'disable.' + NAMESPACE;
   var EVENT_KEYUP = 'keyup.' + NAMESPACE;
   var EVENT_CLICK = 'click.' + NAMESPACE;
   var EVENT_SUBMIT = 'submit.' + NAMESPACE;
   var EVENT_SHOW = 'show.' + NAMESPACE;
+  var EVENT_SLIDEOUT_SUBMIT_COMPLEMENT = 'slideoutSubmitComplete.' + NAMESPACE;
+  var EVENT_SLIDEOUT_CLOSED = 'slideoutClosed.' + NAMESPACE;
   var EVENT_SHOWN = 'shown.' + NAMESPACE;
   var EVENT_HIDE = 'hide.' + NAMESPACE;
   var EVENT_HIDDEN = 'hidden.' + NAMESPACE;
   var EVENT_TRANSITIONEND = 'transitionend';
   var CLASS_OPEN = 'qor-slideout-open';
+  var CLASS_MINI = 'qor-slideout-mini';
   var CLASS_IS_SHOWN = 'is-shown';
   var CLASS_IS_SLIDED = 'is-slided';
   var CLASS_IS_SELECTED = 'is-selected';
   var CLASS_MAIN_CONTENT = '.mdl-layout__content.qor-page';
   var CLASS_HEADER_LOCALE = '.qor-actions__locale';
 
-  function NoLatinBase64(buffer) {
-    var binary = '';
-    var bytes = new Uint8Array(buffer);
-    var len = bytes.byteLength;
-    for (var i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
-  }
-
   function QorSlideout(element, options) {
     this.$element = $(element);
     this.options = $.extend({}, QorSlideout.DEFAULTS, $.isPlainObject(options) && options);
     this.slided = false;
     this.disabled = false;
+    this.slideoutType = false;
     this.init();
   }
 
@@ -77,11 +69,11 @@
 
     bind: function () {
       this.$slideout.
-        on(EVENT_SUBMIT, 'form', $.proxy(this.submit, this));
+        on(EVENT_SUBMIT, 'form', $.proxy(this.submit, this))
+        .on(EVENT_CLICK, '[data-dismiss="slideout"]', $.proxy(this.hide, this));
 
       $document.
-        on(EVENT_KEYUP, $.proxy(this.keyup, this)).
-        on(EVENT_CLICK, $.proxy(this.click, this));
+        on(EVENT_KEYUP, $.proxy(this.keyup, this));
     },
 
     unbind: function () {
@@ -90,29 +82,33 @@
 
       $document.
         off(EVENT_KEYUP, this.keyup).
-        off(EVENT_CLICK, this.click);
+        off(EVENT_CLICK, this.hide);
     },
 
     keyup: function (e) {
       if (e.which === 27) {
+        if ($('.qor-bottomsheets').is(':visible') || $('.qor-modal').is(':visible')) {
+          return;
+        }
+
         this.hide();
+        this.removeSelectedClass();
       }
     },
 
     loadScript: function (src, url, response) {
-      var options = this.options;
       var script = document.createElement('script');
       script.src = src;
       script.onload = function () {
+
         // exec qorSliderAfterShow after script loaded
-        if (options.afterShow){
-          var qorSliderAfterShow = $.fn.qorSliderAfterShow;
-          for (var name in qorSliderAfterShow) {
-            if (qorSliderAfterShow.hasOwnProperty(name)) {
-              qorSliderAfterShow[name].call(this, url, response);
-            }
+        var qorSliderAfterShow = $.fn.qorSliderAfterShow;
+        for (var name in qorSliderAfterShow) {
+          if (qorSliderAfterShow.hasOwnProperty(name)) {
+            qorSliderAfterShow[name].call(this, url, response);
           }
         }
+
       };
       document.body.appendChild(script);
     },
@@ -133,64 +129,52 @@
       return array;
     },
 
-    click: function (e) {
-      var $this = this.$element;
-      var slideout = this.$slideout.get(0);
-      var target = e.target;
-      var dismissible;
-      var $target;
-      var data;
+    loadExtraResource: function ($body,$response,url,response) {
+      var dataBody = $body;
+      dataBody  = dataBody.join('');
+      dataBody  = dataBody.replace(/<\s*body/gi, '<div');
+      dataBody  = dataBody.replace(/<\s*\/body/gi, '</div');
+      var bodyClass = $(dataBody).prop('class');
+      $('body').addClass(bodyClass);
 
-      function toggleClass() {
-        $this.find('tbody > tr').removeClass(CLASS_IS_SELECTED);
-        $target.addClass(CLASS_IS_SELECTED);
-      }
+      // Get links and scripts, compare slideout and inline, load style and script if has new style or script.
+      var $slideoutStyles = $response.filter('link');
+      var $currentPageStyles = $('link');
+      var $slideoutScripts = $response.filter('script');
+      var $currentPageScripts = $('script');
 
-      if (e.isDefaultPrevented()) {
-        return;
-      }
+      var slideoutStylesUrls = this.pushArrary($slideoutStyles, 'href');
+      var currentPageStylesUrls = this.pushArrary($currentPageStyles, 'href');
 
-      while (target !== document) {
-        dismissible = false;
-        $target = $(target);
+      var slideoutScriptsUrls = this.pushArrary($slideoutScripts, 'src');
+      var currentPageScriptsUrls = this.pushArrary($currentPageScripts, 'src');
 
-        if ($target.prop('disabled')) {
-          break;
-        }
+      var styleDifferenceUrl  = _.difference(slideoutStylesUrls, currentPageStylesUrls);
+      var scriptDifferenceUrl = _.difference(slideoutScriptsUrls, currentPageScriptsUrls);
 
-        if (target === slideout) {
-          break;
-        } else if ($target.data('dismiss') === 'slideout') {
-          this.hide();
-          break;
-        } else if ($target.is('table.qor-table > tbody > tr[data-url]')) {
-          if ($(e.target).parents('.qor-table__actions').size() > 0) {
-            return;
-          }
-          // only load when not under loading and not activated
-          if (!this.loading && !$target.hasClass(CLASS_IS_SELECTED)) {
-            $this.one(EVENT_SHOW, toggleClass);
-            data = $target.data();
-            this.load(data.url);
-          }
-          break;
-        } else if ($target.data('url')) {
-          e.preventDefault();
-          data = $target.data();
-          this.load(data.url, data);
-          break;
-        } else {
-          if ($target.is('a')) {
-            break;
-          }
+      var styleDifferenceUrlLength = styleDifferenceUrl.length;
+      var scriptDifferenceUrlLength = scriptDifferenceUrl.length;
 
-          if (target) {
-            target = target.parentNode;
-          } else {
-            break;
-          }
+      if (styleDifferenceUrlLength === 1){
+        this.loadStyle(styleDifferenceUrl);
+      } else if (styleDifferenceUrlLength > 1){
+        for (var i = styleDifferenceUrlLength - 1; i >= 0; i--) {
+          this.loadStyle(styleDifferenceUrl[i]);
         }
       }
+
+      if (scriptDifferenceUrlLength === 1){
+        this.loadScript(scriptDifferenceUrl, url, response);
+      } else if (scriptDifferenceUrlLength > 1){
+        for (var j = scriptDifferenceUrlLength - 1; j >= 0; j--) {
+          this.loadScript(scriptDifferenceUrl[j], url, response);
+        }
+      }
+
+    },
+
+    removeSelectedClass: function () {
+      this.$element.find('[data-url]').removeClass(CLASS_IS_SELECTED);
     },
 
     submit: function (e) {
@@ -212,9 +196,18 @@
           contentType: false,
           beforeSend: function () {
             $submit.prop('disabled', true);
+            $.fn.qorSlideoutBeforeHide = null;
           },
           success: function (html) {
             var returnUrl = $form.data('returnUrl');
+            var refreshUrl = $form.data('refreshUrl');
+
+            $slideout.trigger(EVENT_SLIDEOUT_SUBMIT_COMPLEMENT);
+
+            if (refreshUrl) {
+              window.location.href = refreshUrl;
+              return;
+            }
 
             if (returnUrl == 'refresh') {
               _this.refresh();
@@ -234,7 +227,7 @@
                 }
               });
               if (flashStructs.length > 0) {
-                document.cookie = 'qor-flashes=' + NoLatinBase64(JSON.stringify(flashStructs)) + '; path=' + prefix;
+                document.cookie = 'qor-flashes=' + btoa(unescape(encodeURIComponent(JSON.stringify(flashStructs)))) + '; path=' + prefix;
               }
               _this.refresh();
             }
@@ -242,14 +235,11 @@
           error: function (xhr, textStatus, errorThrown) {
             var $error;
 
-            // Custom HTTP status code
             if (xhr.status === 422) {
 
-              // Clear old errors
               $body.find('.qor-error').remove();
               $form.find('.qor-field').removeClass('is-error').find('.qor-field__error').remove();
 
-              // Append new errors
               $error = $(xhr.responseText).find('.qor-error');
               $form.before($error);
 
@@ -265,7 +255,6 @@
                 }
               });
 
-              // Scroll to top to view the errors
               $slideout.scrollTop(0);
             } else {
               window.alert([textStatus, errorThrown].join(': '));
@@ -273,7 +262,7 @@
           },
           complete: function () {
             $submit.prop('disabled', false);
-          },
+          }
         });
       }
     },
@@ -284,22 +273,18 @@
       var dataType;
       var load;
 
-      if (!url || this.loading) {
+      if (!url) {
         return;
       }
 
-      this.loading = true;
       data = $.isPlainObject(data) ? data : {};
 
       method = data.method ? data.method : 'GET';
       dataType = data.datatype ? data.datatype : 'html';
 
-      data.url = data.method = data.datatype = data.ajaxForm = data.upgraded = undefined;
-
       load = $.proxy(function () {
         $.ajax(url, {
           method: method,
-          data: data,
           dataType: dataType,
           success: $.proxy(function (response) {
             var $response;
@@ -310,57 +295,18 @@
 
               $content = $response.find(CLASS_MAIN_CONTENT);
 
+              this.slideoutType = $content.find('.qor-form-container').data().slideoutType;
+
               if (!$content.length) {
                 return;
               }
 
               // Get response body tag: http://stackoverflow.com/questions/7001926/cannot-get-body-element-from-ajax-response
-              var dataBody = response.match(/<\s*body.*>[\s\S]*<\s*\/body\s*>/ig);
+              var bodyHtml = response.match(/<\s*body.*>[\s\S]*<\s*\/body\s*>/ig);
               // if no body tag return
-              if (dataBody) {
-
-                dataBody  = dataBody.join('');
-                dataBody  = dataBody.replace(/<\s*body/gi, '<div');
-                dataBody  = dataBody.replace(/<\s*\/body/gi, '</div');
-                var bodyClass = $(dataBody).prop('class');
-                $('body').removeClass().addClass(bodyClass);
-
-                // Get links and scripts, compare slideout and inline, load style and script if has new style or script.
-                var $slideoutStyles = $response.filter('link');
-                var $currentPageStyles = $('link');
-                var $slideoutScripts = $response.filter('script');
-                var $currentPageScripts = $('script');
-
-                var slideoutStylesUrls = this.pushArrary($slideoutStyles, 'href');
-                var currentPageStylesUrls = this.pushArrary($currentPageStyles, 'href');
-
-                var slideoutScriptsUrls = this.pushArrary($slideoutScripts, 'src');
-                var currentPageScriptsUrls = this.pushArrary($currentPageScripts, 'src');
-
-                var styleDifferenceUrl  = _.difference(slideoutStylesUrls, currentPageStylesUrls);
-                var scriptDifferenceUrl = _.difference(slideoutScriptsUrls, currentPageScriptsUrls);
-
-                var styleDifferenceUrlLength = styleDifferenceUrl.length;
-                var scriptDifferenceUrlLength = scriptDifferenceUrl.length;
-
-                if (styleDifferenceUrlLength === 1){
-                  this.loadStyle(styleDifferenceUrl);
-                } else if (styleDifferenceUrlLength > 1){
-                  for (var i = styleDifferenceUrlLength - 1; i >= 0; i--) {
-                    this.loadStyle(styleDifferenceUrl[i]);
-                  }
-                }
-
-                if (scriptDifferenceUrlLength === 1){
-                  this.loadScript(scriptDifferenceUrl, url, response);
-                } else if (scriptDifferenceUrlLength > 1){
-                  for (var j = scriptDifferenceUrlLength - 1; j >= 0; j--) {
-                    this.loadScript(scriptDifferenceUrl[j], url, response);
-                  }
-                }
-
+              if (bodyHtml) {
+                this.loadExtraResource(bodyHtml,$response,url,response);
               }
-
               // end
 
               $content.find('.qor-button--cancel').attr('data-dismiss', 'slideout').removeAttr('href');
@@ -381,24 +327,20 @@
 
               this.show();
 
-              $('[data-toggle="qor.datetimepicker"]').materialDatePicker({ format : 'YYYY-MM-DD HH:mm' });
-              $('[data-toggle="qor.datepicker"]').materialDatePicker({ format : 'YYYY-MM-DD', time: false });
-
               // callback for after slider loaded HTML
-              if (options.afterShow){
-                var qorSliderAfterShow = $.fn.qorSliderAfterShow;
+              var qorSliderAfterShow = $.fn.qorSliderAfterShow;
 
+              if (qorSliderAfterShow) {
                 for (var name in qorSliderAfterShow) {
-                  if (qorSliderAfterShow.hasOwnProperty(name)) {
+                  if (qorSliderAfterShow.hasOwnProperty(name) && $.isFunction(qorSliderAfterShow[name])) {
                     qorSliderAfterShow[name].call(this, url, response);
                   }
                 }
-
               }
+
 
             } else {
               if (data.returnUrl) {
-                this.loading = false; // For reload
                 this.load(data.returnUrl);
               } else {
                 this.refresh();
@@ -418,11 +360,9 @@
             } else {
               errors = response.responseText;
             }
-            window.alert(response.responseText);
-          }, this),
-          complete: $.proxy(function () {
-            this.loading = false;
-          }, this),
+            window.alert(errors);
+          }, this)
+
         });
       }, this);
 
@@ -432,6 +372,10 @@
       } else {
         load();
       }
+    },
+
+    open: function (options) {
+      this.load(options.url, options.data);
     },
 
     show: function () {
@@ -449,7 +393,9 @@
         return;
       }
 
-      /*jshint expr:true */
+      $slideout.removeClass(CLASS_MINI);
+      (this.slideoutType == 'mini') && $slideout.addClass(CLASS_MINI);
+
       $slideout.addClass(CLASS_IS_SHOWN).get(0).offsetWidth;
       $slideout.
         one(EVENT_TRANSITIONEND, $.proxy(this.shown, this)).
@@ -467,11 +413,27 @@
     },
 
     hide: function () {
+
+      if ($.fn.qorSlideoutBeforeHide) {
+        if (window.confirm('You have unsaved changes on this slideout. If you close this slideout, you will lose all unsaved changes!')) {
+          this.hideSlideout();
+        }
+      } else {
+        this.hideSlideout();
+      }
+
+      this.removeSelectedClass();
+    },
+
+    hideSlideout: function () {
       var $slideout = this.$slideout;
       var hideEvent;
       var $datePicker = $('.qor-datepicker').not('.hidden');
 
-      $('body').removeClass().addClass(this.$bodyClass);
+      // remove onbeforeunload event
+      window.onbeforeunload = null;
+
+      $.fn.qorSlideoutBeforeHide = null;
 
       if ($datePicker.size()){
         $datePicker.addClass('hidden');
@@ -494,6 +456,8 @@
       $slideout.
         one(EVENT_TRANSITIONEND, $.proxy(this.hidden, this)).
         removeClass(CLASS_IS_SLIDED);
+
+      $slideout.trigger(EVENT_SLIDEOUT_CLOSED);
     },
 
     hidden: function () {
@@ -502,7 +466,6 @@
       // Enable to scroll body element
       $('body').removeClass(CLASS_OPEN);
 
-      this.$element.find('tbody > tr').removeClass(CLASS_IS_SELECTED);
       this.$slideout.removeClass(CLASS_IS_SHOWN).trigger(EVENT_HIDDEN);
     },
 
@@ -514,36 +477,28 @@
       }, 350);
     },
 
-    toggle: function () {
-      if (this.slided) {
-        this.hide();
-      } else {
-        this.show();
-      }
-    },
-
     destroy: function () {
       this.unbind();
       this.unbuild();
       this.$element.removeData(NAMESPACE);
-    },
+    }
   };
 
   QorSlideout.DEFAULTS = {
-    title: false,
-    content: false,
+    title: '.qor-form-title, .mdl-layout-title',
+    content: false
   };
 
   QorSlideout.TEMPLATE = (
-    '<div class="qor-slideout">' +
-      '<div class="qor-slideout__header">' +
-        '<button type="button" class="mdl-button mdl-button--icon mdl-js-button mdl-js-repple-effect qor-slideout__close" data-dismiss="slideout">' +
-          '<span class="material-icons">close</span>' +
-        '</button>' +
-        '<h3 class="qor-slideout__title"></h3>' +
-      '</div>' +
-      '<div class="qor-slideout__body"></div>' +
-    '</div>'
+      '<div class="qor-slideout">' +
+        '<div class="qor-slideout__header">' +
+          '<button type="button" class="mdl-button mdl-button--icon mdl-js-button mdl-js-repple-effect qor-slideout__close" data-dismiss="slideout">' +
+            '<span class="material-icons">close</span>' +
+          '</button>' +
+          '<h3 class="qor-slideout__title"></h3>' +
+        '</div>' +
+        '<div class="qor-slideout__body"></div>' +
+      '</div>'
   );
 
   QorSlideout.plugin = function (options) {
@@ -566,28 +521,7 @@
     });
   };
 
-  $(function () {
-    var selector = '.qor-theme-slideout';
-    var options = {
-          title: '.qor-form-title, .mdl-layout-title',
-          afterShow: $.fn.qorSliderAfterShow ? $.fn.qorSliderAfterShow : null
-        };
-
-    $(document).
-      on(EVENT_ENABLE, function (e) {
-
-        if (/slideout/.test(e.namespace)) {
-          QorSlideout.plugin.call($(selector, e.target), options);
-        }
-      }).
-      on(EVENT_DISABLE, function (e) {
-
-        if (/slideout/.test(e.namespace)) {
-          QorSlideout.plugin.call($(selector, e.target), 'destroy');
-        }
-      }).
-      triggerHandler(EVENT_ENABLE);
-  });
+  $.fn.qorSlideout = QorSlideout.plugin;
 
   return QorSlideout;
 
