@@ -16,6 +16,7 @@ type Menu struct {
 	Permission *roles.Permission
 	subMenus   []*Menu
 	rawPath    string
+	Invisible  bool
 }
 
 func (menu Menu) HasPermission(mode roles.PermissionMode, context *qor.Context) bool {

@@ -1,5 +1,6 @@
 <ul class="qor-menu">
   {{range .Result}}
+  {{if .Invisible}}{{else}}
     {{if .SubMenus}}
       <li qor-icon-name="{{.Name}}" {{if .Active}}class="active"{{end}}>
         <a href="{{if .Link}}{{.Link}}{{else}}javascript:void(0);{{end}}">{{t (printf "qor_admin.menus.%v" .Name) .Name}}</a>
@@ -10,5 +11,6 @@
         {{link_to (t (printf "qor_admin.menus.%v" .Name) .Name) .Link}}
       </li>
     {{end}}
+  {{end}}
   {{end}}
 </ul>
