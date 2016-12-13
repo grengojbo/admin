@@ -55,6 +55,10 @@ func newRouter() *Router {
 	}}
 }
 
+func (r *Router) Mounted() bool {
+	return r.Prefix != ""
+}
+
 // Use reigster a middleware to the router
 func (r *Router) Use(middleware *Middleware) {
 	// compile middleware
@@ -97,12 +101,13 @@ func (r *Router) Delete(path string, handle requestHandler, config ...RouteConfi
 	r.routers["DELETE"] = append(r.routers["DELETE"], newRouteHandler(path, handle, config...))
 }
 
-func (admin *Admin) registerResourceToRouter(adminController *controller, res *Resource, modes ...string) {
+func (admin *Admin) RegisterResourceRouters(res *Resource, modes ...string) {
 	var (
-		prefix     string
-		router     = admin.router
-		param      = res.ToParam()
-		primaryKey = res.ParamIDName()
+		prefix          string
+		router          = admin.router
+		param           = res.ToParam()
+		primaryKey      = res.ParamIDName()
+		adminController = &Controller{Admin: admin}
 	)
 
 	if prefix = func(r *Resource) string {
@@ -148,12 +153,14 @@ func (admin *Admin) registerResourceToRouter(adminController *controller, res *R
 			} else {
 				// Action
 				for _, action := range res.Actions {
-					actionController := &controller{Admin: admin, action: action}
+					actionController := &Controller{Admin: admin, action: action}
 					router.Get(path.Join(prefix, "!action", action.ToParam()), actionController.Action, RouteConfig{
+						Permissioner:   action,
 						PermissionMode: roles.Update,
 						Resource:       res,
 					})
 					router.Put(path.Join(prefix, "!action", action.ToParam()), actionController.Action, RouteConfig{
+						Permissioner:   action,
 						PermissionMode: roles.Update,
 						Resource:       res,
 					})
@@ -177,12 +184,14 @@ func (admin *Admin) registerResourceToRouter(adminController *controller, res *R
 
 				// Action
 				for _, action := range res.Actions {
-					actionController := &controller{Admin: admin, action: action}
+					actionController := &Controller{Admin: admin, action: action}
 					router.Get(path.Join(prefix, primaryKey, action.ToParam()), actionController.Action, RouteConfig{
+						Permissioner:   action,
 						PermissionMode: roles.Update,
 						Resource:       res,
 					})
 					router.Put(path.Join(prefix, primaryKey, action.ToParam()), actionController.Action, RouteConfig{
+						Permissioner:   action,
 						PermissionMode: roles.Update,
 						Resource:       res,
 					})
@@ -229,7 +238,7 @@ func (admin *Admin) registerResourceToRouter(adminController *controller, res *R
 		for _, meta := range res.ConvertSectionToMetas(res.NewAttrs()) {
 			if meta.FieldStruct != nil && meta.FieldStruct.Relationship != nil && meta.Resource.base != nil {
 				if len(meta.Resource.newSections) > 0 {
-					admin.registerResourceToRouter(adminController, meta.Resource, "create")
+					admin.RegisterResourceRouters(meta.Resource, "create")
 				}
 			}
 		}
@@ -237,7 +246,7 @@ func (admin *Admin) registerResourceToRouter(adminController *controller, res *R
 		for _, meta := range res.ConvertSectionToMetas(res.ShowAttrs()) {
 			if meta.FieldStruct != nil && meta.FieldStruct.Relationship != nil && meta.Resource.base != nil {
 				if len(meta.Resource.showSections) > 0 {
-					admin.registerResourceToRouter(adminController, meta.Resource, "read")
+					admin.RegisterResourceRouters(meta.Resource, "read")
 				}
 			}
 		}
@@ -245,7 +254,7 @@ func (admin *Admin) registerResourceToRouter(adminController *controller, res *R
 		for _, meta := range res.ConvertSectionToMetas(res.EditAttrs()) {
 			if meta.FieldStruct != nil && meta.FieldStruct.Relationship != nil && meta.Resource.base != nil {
 				if len(meta.Resource.editSections) > 0 {
-					admin.registerResourceToRouter(adminController, meta.Resource, "update", "delete")
+					admin.RegisterResourceRouters(meta.Resource, "update", "delete")
 				}
 			}
 		}
@@ -260,14 +269,14 @@ func (admin *Admin) MountTo(mountTo string, mux *http.ServeMux) {
 
 	admin.generateMenuLinks()
 
-	adminController := &controller{Admin: admin}
+	adminController := &Controller{Admin: admin}
 	router.Get("", adminController.Dashboard)
 	router.Get("/!search", adminController.SearchCenter)
 
 	for _, res := range admin.resources {
 		res.configure()
 		if !res.Config.Invisible {
-			admin.registerResourceToRouter(adminController, res, "create", "update", "read", "delete")
+			admin.RegisterResourceRouters(res, "create", "update", "read", "delete")
 		}
 	}
 
@@ -361,7 +370,7 @@ func (admin *Admin) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if regexp.MustCompile("^/assets/.*$").MatchString(relativePath) && strings.ToUpper(context.Request.Method) == "GET" {
-		(&controller{Admin: admin}).Asset(context)
+		(&Controller{Admin: admin}).Asset(context)
 		return
 	}
 
@@ -374,9 +383,9 @@ func (admin *Admin) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	// Set Current User
 	var currentUser qor.CurrentUser
-	if admin.auth != nil {
-		if currentUser = admin.auth.GetCurrentUser(context); currentUser == nil {
-			http.Redirect(w, req, admin.auth.LoginURL(context), http.StatusSeeOther)
+	if admin.Auth != nil {
+		if currentUser = admin.Auth.GetCurrentUser(context); currentUser == nil {
+			http.Redirect(w, req, admin.Auth.LoginURL(context), http.StatusSeeOther)
 			return
 		}
 		context.CurrentUser = currentUser

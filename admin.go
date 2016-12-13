@@ -23,7 +23,7 @@ type Admin struct {
 	menus            []*Menu
 	resources        []*Resource
 	searchResources  []*Resource
-	auth             Auth
+	Auth             Auth
 	router           *Router
 	funcMaps         template.FuncMap
 	metaConfigorMaps map[string]func(*Meta)
@@ -44,6 +44,7 @@ func New(config *qor.Config) *Admin {
 	}
 
 	admin.SetAssetFS(&AssetFileSystem{})
+	admin.registerCompositePrimaryKeyCallback()
 	return &admin
 }
 
@@ -55,7 +56,7 @@ func (admin *Admin) SetSiteName(siteName string) {
 
 // SetAuth set admin's authorization gateway
 func (admin *Admin) SetAuth(auth Auth) {
-	admin.auth = auth
+	admin.Auth = auth
 }
 
 // SetAssetFS set AssetFS for admin
@@ -127,7 +128,7 @@ func (admin *Admin) newResource(value interface{}, config ...*Config) *Resource 
 	}
 
 	// Configure resource when initializing
-	modelType := admin.Config.DB.NewScope(res.Value).GetModelStruct().ModelType
+	modelType := utils.ModelType(res.Value)
 	for i := 0; i < modelType.NumField(); i++ {
 		if fieldStruct := modelType.Field(i); fieldStruct.Anonymous {
 			if injector, ok := reflect.New(fieldStruct.Type).Interface().(resource.ConfigureResourceBeforeInitializeInterface); ok {
@@ -147,6 +148,8 @@ func (admin *Admin) newResource(value interface{}, config ...*Config) *Resource 
 		}
 		return findOneHandler(result, metaValues, context)
 	}
+
+	res.UseTheme("slideout")
 	return res
 }
 
@@ -184,6 +187,14 @@ func (admin *Admin) AddResource(value interface{}, config ...*Config) *Resource 
 	}
 
 	admin.resources = append(admin.resources, res)
+
+	if admin.router.Mounted() {
+		admin.generateMenuLinks()
+		res.configure()
+		if !res.Config.Invisible {
+			admin.RegisterResourceRouters(res, "create", "update", "read", "delete")
+		}
+	}
 	return res
 }
 

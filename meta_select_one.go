@@ -140,6 +140,7 @@ func (selectOneConfig *SelectOneConfig) prepareDataSource(field *gorm.StructFiel
 			cloneContext := context.clone()
 			cloneContext.setResource(selectOneConfig.RemoteDataResource)
 			searcher := &Searcher{Context: cloneContext}
+			searcher.Pagination.CurrentPage = -1
 			searchResults, _ := searcher.FindMany()
 
 			reflectValues := reflect.Indirect(reflect.ValueOf(searchResults))
@@ -156,8 +157,7 @@ func (selectOneConfig *SelectOneConfig) prepareDataSource(field *gorm.StructFiel
 		if remoteDataResource := selectOneConfig.RemoteDataResource; remoteDataResource != nil {
 			if remoteDataResource.params == "" {
 				remoteDataResource.params = path.Join(routePrefix, res.ToParam(), field.Name)
-				remoteDataSearcherController := &controller{Admin: res.GetAdmin()}
-				res.GetAdmin().registerResourceToRouter(remoteDataSearcherController, remoteDataResource, "create", "update", "read", "delete")
+				res.GetAdmin().RegisterResourceRouters(remoteDataResource, "create", "update", "read", "delete")
 			}
 		} else {
 			utils.ExitWithMsg("RemoteDataResource not configured")

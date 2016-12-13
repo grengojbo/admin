@@ -1,4 +1,4 @@
-$(function () {
+$(function() {
 
     'use strict';
 
@@ -9,55 +9,55 @@ $(function () {
         CLASS_IS_SELECTED = 'is-selected',
 
         hasSlideoutTheme = $body.hasClass('qor-theme-slideout'),
-        isSlideoutOpened = function(){
+        isSlideoutOpened = function() {
             return $body.hasClass('qor-slideout-open');
         },
-        isBottomsheetsOpened = function(){
+        isBottomsheetsOpened = function() {
             return $body.hasClass('qor-bottomsheets-open');
         };
 
 
     $body.qorBottomSheets();
-    if (hasSlideoutTheme) {
-        $body.qorSlideout();
-    }
+    $body.qorSlideout();
 
     Slideout = $body.data('qor.slideout');
     BottomSheets = $body.data('qor.bottomsheets');
 
-    function clearSelectedCss () {
+    function clearSelectedCss() {
         $('[data-url]').removeClass(CLASS_IS_SELECTED);
     }
 
-    function toggleSelectedCss (ele) {
+    function toggleSelectedCss(ele) {
         $('[data-url]').removeClass(CLASS_IS_SELECTED);
         ele.addClass(CLASS_IS_SELECTED);
     }
 
-    function collectSelectID () {
-        var $checked = $('.qor-table tbody').find('.mdl-checkbox__input:checked'),
+    function collectSelectID() {
+        var $checked = $('.qor-js-table tbody').find('.mdl-checkbox__input:checked'),
             IDs = [];
 
         if (!$checked.length) {
             return;
         }
 
-        $checked.each(function () {
+        $checked.each(function() {
             IDs.push($(this).closest('tr').data('primary-key'));
         });
 
         return IDs;
     }
 
-    $(document).on('click.qor.openUrl', '[data-url]', function (e) {
+    $(document).on('click.qor.openUrl', '[data-url]', function(e) {
         var $this = $(this),
             $target = $(e.target),
             isNewButton = $this.hasClass('qor-button--new'),
             isEditButton = $this.hasClass('qor-button--edit'),
             isInTable = $this.is('.qor-table tr[data-url]') || $this.closest('.qor-js-table').length,
-            isActionButton = $this.hasClass('qor-action-button') || $this.hasClass('qor-action--button'),
             openData = $this.data(),
-            actionData;
+            actionData,
+            openType = openData.openType,
+            isActionButton = ($this.hasClass('qor-action-button') || $this.hasClass('qor-action--button')) && !openType;
+
 
         // if clicking item's menu actions
         if ($target.closest('.qor-button--actions').length || (!$target.data('url') && $target.is('a')) || (isInTable && isBottomsheetsOpened())) {
@@ -73,14 +73,14 @@ $(function () {
 
         if (!openData.method || openData.method.toUpperCase() == "GET") {
             // Open in BottmSheet: is action button, open type is bottom-sheet
-            if (isActionButton || openData.openType == 'bottom-sheet') {
+            if (isActionButton || openType == 'bottomsheet') {
                 BottomSheets.open(openData);
                 return false;
             }
 
             // Slideout or New Page: table items, new button, edit button
-            if (isInTable || (isNewButton && !isBottomsheetsOpened()) || isEditButton || openData.openType == 'slideout') {
-                if (hasSlideoutTheme) {
+            if (isInTable || (isNewButton && !isBottomsheetsOpened()) || isEditButton || openType == 'slideout') {
+                if (hasSlideoutTheme || openType == 'slideout') {
                     if ($this.hasClass(CLASS_IS_SELECTED)) {
                         Slideout.hide();
                         clearSelectedCss();
@@ -91,9 +91,9 @@ $(function () {
                         return false;
                     }
                 } else {
-                    window.location = openData('url');
+                    window.location = openData.url;
+                    return false;
                 }
-                return;
             }
 
             // Open in BottmSheet: slideout is opened or openType is Bottom Sheet
@@ -110,8 +110,6 @@ $(function () {
                 BottomSheets.open(openData);
                 return false;
             }
-
         }
     });
-
 });

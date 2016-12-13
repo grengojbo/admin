@@ -68,6 +68,14 @@
     }
   }
 
+  function clearObject(obj) {
+      for(var prop in obj) {
+          if(obj.hasOwnProperty(prop))
+              obj[prop] = '';
+      }
+      return obj;
+  }
+
   function replaceText(str, data) {
     if (typeof str === 'string') {
       if (typeof data === 'object') {
@@ -238,14 +246,21 @@
     },
 
     read: function (e) {
-      var files = e.target.files;
-      var file;
+      var files = e.target.files,
+          file,
+          $alert = this.$parent.find('.qor-fieldset__alert');
+
+      if ($alert.size()) {
+        $alert.remove();
+        this.data = clearObject(this.data);
+      }
 
       if (files && files.length) {
         file = files[0];
 
         if (/^image\/\w+$/.test(file.type) && URL) {
           this.load(URL.createObjectURL(file));
+          this.$parent.find('.qor-medialibrary__image-desc').show();
         } else {
           this.$list.empty().html(QorCropper.FILE_LIST.replace('{{filename}}', file.name));
         }
@@ -329,7 +344,7 @@
         _this.$output.val(JSON.stringify(data));
 
         // callback after load complete
-        if (sizeName && Object.keys(data[options.key]).length >= imageLength) {
+        if (sizeName && data[options.key] && Object.keys(data[options.key]).length >= imageLength) {
           if (callback && $.isFunction(callback)) {
             callback();
           }
@@ -390,7 +405,7 @@
             var cropData = $clone.cropper('getData', true);
             var syncData = [];
             var url;
-            
+
             data.crop = true;
             data[options.key][sizeName] = cropData;
             _this.imageData = $clone.cropper('getImageData');

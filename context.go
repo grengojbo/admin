@@ -50,6 +50,7 @@ func (context *Context) clone() *Context {
 		Content:  context.Content,
 		Settings: context.Settings,
 		Action:   context.Action,
+		funcMaps: context.funcMaps,
 	}
 }
 
@@ -164,7 +165,7 @@ func (context *Context) Render(name string, results ...interface{}) template.HTM
 		clone.Result = results[0]
 	}
 
-	return context.renderWith(name, clone)
+	return clone.renderWith(name, clone)
 }
 
 // Execute execute template with layout
@@ -208,7 +209,12 @@ func (context *Context) JSON(action string, result interface{}) {
 		action = "edit"
 	}
 
-	js, _ := json.MarshalIndent(context.Resource.convertObjectToJSONMap(context, result, action), "", "\t")
+	js, err := json.MarshalIndent(context.Resource.convertObjectToJSONMap(context, result, action), "", "\t")
 	context.Writer.Header().Set("Content-Type", "application/json")
+	if err != nil {
+		result := make(map[string]string)
+		result["error"] = err.Error()
+		js, _ = json.Marshal(result)
+	}
 	context.Writer.Write(js)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/qor/qor"
 	"github.com/qor/qor/utils"
 	"github.com/qor/roles"
 )
@@ -22,6 +23,14 @@ func (res *Resource) Action(action *Action) {
 		}
 	}
 
+	if action.URLOpenType == "" {
+		if action.Resource != nil {
+			action.URLOpenType = "bottomsheet"
+		} else if action.Method == "GET" {
+			action.URLOpenType = "_blank"
+		}
+	}
+
 	res.Actions = append(res.Actions, action)
 }
 
@@ -36,22 +45,24 @@ func (res *Resource) GetAction(name string) *Action {
 
 // ActionArgument action argument that used in handle
 type ActionArgument struct {
-	PrimaryValues []string
-	Context       *Context
-	Argument      interface{}
+	PrimaryValues       []string
+	Context             *Context
+	Argument            interface{}
+	SkipDefaultResponse bool
 }
 
 // Action action definiation
 type Action struct {
-	Name       string
-	Label      string
-	Method     string
-	URL        func(record interface{}, context *Context) string
-	Visible    func(record interface{}, context *Context) bool
-	Handle     func(argument *ActionArgument) error
-	Modes      []string
-	Resource   *Resource
-	Permission *roles.Permission
+	Name        string
+	Label       string
+	Method      string
+	URL         func(record interface{}, context *Context) string
+	URLOpenType string
+	Visible     func(record interface{}, context *Context) bool
+	Handle      func(argument *ActionArgument) error
+	Modes       []string
+	Resource    *Resource
+	Permission  *roles.Permission
 }
 
 // ToParam used to register routes for actions
@@ -59,8 +70,8 @@ func (action Action) ToParam() string {
 	return utils.ToParamString(action.Name)
 }
 
-// HasPermission check if current user has permission for the action
-func (action Action) HasPermission(mode roles.PermissionMode, context *Context, records ...interface{}) bool {
+// IsAllowed check if current user has permission to view the action
+func (action Action) IsAllowed(mode roles.PermissionMode, context *Context, records ...interface{}) bool {
 	if action.Visible != nil {
 		for _, record := range records {
 			if !action.Visible(record, context) {
@@ -69,11 +80,23 @@ func (action Action) HasPermission(mode roles.PermissionMode, context *Context, 
 		}
 	}
 
-	if action.Permission == nil {
-		return true
+	if action.Permission != nil {
+		return action.HasPermission(mode, context.Context)
 	}
 
-	return action.Permission.HasPermission(mode, context.Roles...)
+	if context.Resource != nil {
+		return context.Resource.HasPermission(mode, context.Context)
+	}
+	return true
+}
+
+// HasPermission check if current user has permission for the action
+func (action Action) HasPermission(mode roles.PermissionMode, context *qor.Context) bool {
+	if action.Permission != nil {
+		return action.Permission.HasPermission(mode, context.Roles...)
+	}
+
+	return true
 }
 
 // FindSelectedRecords find selected records when run bulk actions

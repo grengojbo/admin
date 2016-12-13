@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"html"
 	"html/template"
+	"math/rand"
+	"net/url"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -42,6 +44,19 @@ func (context *Context) primaryKeyOf(value interface{}) interface{} {
 	if reflect.Indirect(reflect.ValueOf(value)).Kind() == reflect.Struct {
 		scope := &gorm.Scope{Value: value}
 		return fmt.Sprint(scope.PrimaryKeyValue())
+	}
+	return fmt.Sprint(value)
+}
+
+func (context *Context) uniqueKeyOf(value interface{}) interface{} {
+	if reflect.Indirect(reflect.ValueOf(value)).Kind() == reflect.Struct {
+		scope := &gorm.Scope{Value: value}
+		var primaryValues []string
+		for _, primaryField := range scope.PrimaryFields() {
+			primaryValues = append(primaryValues, fmt.Sprint(primaryField.Field.Interface()))
+		}
+		primaryValues = append(primaryValues, fmt.Sprint(rand.Intn(1000)))
+		return url.QueryEscape(strings.Join(primaryValues, "_ "))
 	}
 	return fmt.Sprint(value)
 }
@@ -91,8 +106,32 @@ func (context *Context) URLFor(value interface{}, resources ...*Resource) string
 				return path.Join(getPrefix(res), res.ToParam())
 			}
 
-			primaryKey := fmt.Sprint(context.GetDB().NewScope(value).PrimaryKeyValue())
-			return path.Join(getPrefix(res), res.ToParam(), primaryKey)
+			var (
+				scope         = context.GetDB().NewScope(value)
+				primaryField  = scope.PrimaryField()
+				primaryKey    string
+				primaryValues = map[string]string{}
+			)
+
+			if primaryField != nil {
+				primaryKey = fmt.Sprint(reflect.Indirect(primaryField.Field).Interface())
+			}
+
+			for _, field := range scope.PrimaryFields() {
+				if field.DBName != primaryField.DBName {
+					primaryValues[fmt.Sprintf("primary_key[%v_%v]", scope.TableName(), field.DBName)] = fmt.Sprint(reflect.Indirect(field.Field).Interface())
+				}
+			}
+
+			result := path.Join(getPrefix(res), res.ToParam(), primaryKey)
+			if len(primaryValues) > 0 {
+				var primaryValueParams []string
+				for key, value := range primaryValues {
+					primaryValueParams = append(primaryValueParams, fmt.Sprintf("%v=%v", key, url.QueryEscape(value)))
+				}
+				result = result + "?" + strings.Join(primaryValueParams, "&")
+			}
+			return result
 		}
 	}
 	return ""
@@ -189,8 +228,9 @@ func (context *Context) renderSections(value interface{}, sections []*Section, p
 		}
 
 		var data = map[string]interface{}{
-			"Title": template.HTML(section.Title),
-			"Rows":  rows,
+			"Section": section,
+			"Title":   template.HTML(section.Title),
+			"Rows":    rows,
 		}
 		if content, err := context.Asset("metas/section.tmpl"); err == nil {
 			if tmpl, err := template.New("section").Funcs(context.FuncMap()).Parse(string(content)); err == nil {
@@ -594,14 +634,35 @@ func (context *Context) patchURL(url string, params ...interface{}) (patchedURL 
 	return utils.PatchURL(url, params...)
 }
 
+// JoinCurrentURL is a convinent wrapper for qor/utils.JoinURL
+func (context *Context) joinCurrentURL(params ...interface{}) (joinedURL string, err error) {
+	return utils.JoinURL(context.Request.URL.String(), params...)
+}
+
+// JoinURL is a convinent wrapper for qor/utils.JoinURL
+func (context *Context) joinURL(url string, params ...interface{}) (joinedURL string, err error) {
+	return utils.JoinURL(url, params...)
+}
+
 func (context *Context) themesClass() (result string) {
-	var results []string
+	var results = map[string]bool{}
 	if context.Resource != nil {
 		for _, theme := range context.Resource.Config.Themes {
-			results = append(results, "qor-theme-"+theme.GetName())
+			if strings.HasPrefix(theme.GetName(), "-") {
+				results[strings.TrimPrefix(theme.GetName(), "-")] = false
+			} else if _, ok := results[theme.GetName()]; !ok {
+				results[theme.GetName()] = true
+			}
 		}
 	}
-	return strings.Join(results, " ")
+
+	var names []string
+	for name, enabled := range results {
+		if enabled {
+			names = append(names, "qor-theme-"+name)
+		}
+	}
+	return strings.Join(names, " ")
 }
 
 func (context *Context) javaScriptTag(names ...string) template.HTML {
@@ -758,8 +819,8 @@ func (context *Context) loadActions(action string) template.HTML {
 }
 
 func (context *Context) logoutURL() string {
-	if context.Admin.auth != nil {
-		return context.Admin.auth.LogoutURL(context)
+	if context.Admin.Auth != nil {
+		return context.Admin.Auth.LogoutURL(context)
 	}
 	return ""
 }
@@ -838,7 +899,7 @@ func (context *Context) AllowedActions(actions []*Action, mode string, records .
 					permission = roles.Read
 				}
 
-				if action.HasPermission(permission, context, records...) {
+				if action.IsAllowed(permission, context, records...) {
 					allowedActions = append(allowedActions, action)
 					break
 				}
@@ -904,6 +965,7 @@ func (context *Context) FuncMap() template.FuncMap {
 		"is_equal":             context.isEqual,
 		"is_included":          context.isIncluded,
 		"primary_key_of":       context.primaryKeyOf,
+		"unique_key_of":        context.uniqueKeyOf,
 		"formatted_value_of":   context.FormattedValueOf,
 		"raw_value_of":         context.RawValueOf,
 
@@ -963,6 +1025,8 @@ func (context *Context) FuncMap() template.FuncMap {
 		"link_to":            context.linkTo,
 		"patch_current_url":  context.patchCurrentURL,
 		"patch_url":          context.patchURL,
+		"join_current_url":   context.joinCurrentURL,
+		"join_url":           context.joinURL,
 		"logout_url":         context.logoutURL,
 		"search_center_path": func() string { return path.Join(context.Admin.router.Prefix, "!search") },
 		"new_resource_path":  context.newResourcePath,

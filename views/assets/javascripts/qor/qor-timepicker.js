@@ -43,11 +43,13 @@
       this.oldValue = this.$targetInput.val();
 
       var dateNow = new Date();
-      var month = dateNow.getMonth();
-      month = (month < 8) ? '0' + (month + 1) : month;
+      var month = dateNow.getMonth() + 1;
+      var date = dateNow.getDate();
 
-      this.dateValueNow = dateNow.getFullYear() + '-' + month + '-' + dateNow.getDate();
+      month = (month < 8) ? ('0' + month) : month;
+      date = (date < 10) ? ('0' + date) : date;
 
+      this.dateValueNow = dateNow.getFullYear() + '-' + month + '-' + date;
     },
 
     bind: function () {
@@ -101,6 +103,10 @@
 
       var timeReg = /\d{1,2}:\d{1,2}/;
       var dateReg = /^\d{4}-\d{1,2}-\d{1,2}/;
+
+      if (!inputValue) {
+        return;
+      }
 
       if (inputArrLen == 1) {
         if (dateReg.test(inputArr[0])) {

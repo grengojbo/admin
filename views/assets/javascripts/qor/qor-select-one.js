@@ -51,7 +51,7 @@
                 on(EVENT_RELOAD, '.' + CLASS_ONE, this.reloadData.bind(this));
 
       this.$element.
-        on(EVENT_CLICK, CLASS_CLEAR_SELECT, this.clearSelect).
+        on(EVENT_CLICK, CLASS_CLEAR_SELECT, this.clearSelect.bind(this)).
         on(EVENT_CLICK, CLASS_CHANGE_SELECT, this.changeSelect);
     },
 
@@ -60,18 +60,19 @@
                 off(EVENT_RELOAD, '.' + CLASS_ONE, this.reloadData.bind(this));
 
       this.$element.
-        off(EVENT_CLICK, CLASS_CLEAR_SELECT, this.clearSelect).
+        off(EVENT_CLICK, CLASS_CLEAR_SELECT, this.clearSelect.bind(this)).
         off(EVENT_CLICK, CLASS_CHANGE_SELECT, this.changeSelect);
     },
 
-    clearSelect: function () {
-      var $target = $(this),
+    clearSelect: function (e) {
+      var $target = $(e.target),
           $parent = $target.closest(CLASS_PARENT);
 
       $parent.find(CLASS_SELECT_FIELD).remove();
       $parent.find(CLASS_SELECT_INPUT)[0].value = '';
       $parent.find(CLASS_SELECT_TRIGGER).show();
 
+      $parent.trigger('qor.selectone.unselected');
       return false;
     },
 
@@ -131,15 +132,15 @@
       this.initItem();
     },
 
-    onSelectResults: function (e, data) {
-      this.handleResults(e, data);
+    onSelectResults: function (data) {
+      this.handleResults(data);
     },
 
-    onSubmitResults: function (e, data) {
-      this.handleResults(e, data, true);
+    onSubmitResults: function (data) {
+      this.handleResults(data, true);
     },
 
-    handleResults: function (e, data, isNewData) {
+    handleResults: function (data, isNewData) {
       var template,
           bottomsheetsData = this.bottomsheetsData,
           $parent = this.$parent,
@@ -147,6 +148,10 @@
           $selectFeild = $parent.find(CLASS_SELECT_FIELD);
 
       data.displayName = data.Text || data.Name || data.Title || data.Code || data[Object.keys(data)[0]];
+
+      if (!$select.size()) {
+        return;
+      }
 
       $select[0].value = data.primaryKey;
       template = this.renderSelectOne(data);
@@ -163,6 +168,9 @@
         $select[0].value = data.primaryKey;
       }
 
+      $parent.trigger('qor.selectone.selected', [data]);
+
+      $(CLASS_BOTTOMSHEETS).qorSelectCore('destroy');
       this.BottomSheets.hide();
     },
 
