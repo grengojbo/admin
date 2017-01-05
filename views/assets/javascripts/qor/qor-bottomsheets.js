@@ -18,6 +18,8 @@
     var EVENT_CLICK = 'click.' + NAMESPACE;
     var EVENT_SUBMIT = 'submit.' + NAMESPACE;
     var EVENT_RELOAD = 'reload.' + NAMESPACE;
+    var EVENT_BOTTOMSHEET_LOADED = 'bottomsheetLoaded.' + NAMESPACE;
+    var EVENT_BOTTOMSHEET_CLOSED = 'bottomsheetClosed.' + NAMESPACE;
     var EVENT_HIDE = 'hide.' + NAMESPACE;
     var EVENT_HIDDEN = 'hidden.' + NAMESPACE;
     var EVENT_KEYUP = 'keyup.' + NAMESPACE;
@@ -79,7 +81,7 @@
         build: function() {
             var $bottomsheets = $(CLASS_BOTTOMSHEETS);
 
-            if ($bottomsheets.size()) {
+            if ($bottomsheets.length) {
                 $bottomsheets.remove();
             }
 
@@ -90,6 +92,10 @@
             this.$bodyClass = $('body').prop('class');
             this.filterURL = '';
             this.searchParams = '';
+
+        },
+
+        initBottomsheet: function() {
 
         },
 
@@ -248,6 +254,7 @@
             var script = document.createElement('script');
             script.src = src;
             document.body.appendChild(script);
+            this.scriptAdded = true;
         },
 
         loadMedialibraryJS: function($response) {
@@ -354,7 +361,6 @@
                 $header = this.$header,
                 $body = this.$body;
 
-
             if (!url) {
                 return;
             }
@@ -400,7 +406,7 @@
                                 if (selectModal != 'one' && (typeof resourseData.maxItem === 'undefined' || resourseData.maxItem != '1')) {
                                     $body.addClass('has-hint');
                                 }
-                                if (selectModal == 'mediabox') {
+                                if (selectModal == 'mediabox' && !this.scriptAdded) {
                                     this.loadMedialibraryJS($response);
                                 }
                             }
@@ -434,16 +440,7 @@
                             }
 
                             // callback for after bottomSheets loaded HTML
-                            // if (options.afterShow){
-                            //   var qorBottomsheetsAfterShow = $.fn.qorBottomsheetsAfterShow;
-
-                            //   for (var name in qorBottomsheetsAfterShow) {
-                            //     if (qorBottomsheetsAfterShow.hasOwnProperty(name) && $.isFunction(qorBottomsheetsAfterShow[name])) {
-                            //       qorBottomsheetsAfterShow[name].call(this, url, response);
-                            //     }
-                            //   }
-
-                            // }
+                            $bottomsheets.trigger(EVENT_BOTTOMSHEET_LOADED, [url, response]);
 
                         } else {
                             if (data.returnUrl) {
@@ -460,7 +457,7 @@
                     error: $.proxy(function(response) {
                         this.hide();
                         var errors;
-                        if ($('.qor-error span').size() > 0) {
+                        if ($('.qor-error span').length > 0) {
                             errors = $('.qor-error span').map(function() {
                                 return $(this).text();
                             }).get().join(', ');
@@ -493,7 +490,7 @@
             var hideEvent;
             var $datePicker = $('.qor-datepicker').not('.hidden');
 
-            if ($datePicker.size()) {
+            if ($datePicker.length) {
                 $datePicker.addClass('hidden');
             }
 
@@ -504,9 +501,6 @@
                 return;
             }
 
-            // empty body html when hide slideout
-            this.$body.html('');
-
             $bottomsheets.
             removeClass(CLASS_IS_SLIDED).
             removeClass(CLASS_IS_SHOWN).
@@ -515,9 +509,8 @@
             $('body').removeClass(CLASS_OPEN);
             $bottomsheets.qorSelectCore('destroy');
 
-            // reinit bottomsheets template, clear all bind events.
+            $bottomsheets.trigger(EVENT_BOTTOMSHEET_CLOSED);
             this.init();
-
             return false;
         },
 

@@ -19,7 +19,6 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/inflection"
-	"github.com/microcosm-cc/bluemonday"
 	"github.com/qor/qor"
 	"github.com/qor/qor/utils"
 	"github.com/qor/roles"
@@ -582,9 +581,17 @@ const visiblePageCount = 8
 // [prev, 5, 6, 7, 8, 9, current, 11, 12]
 // If total page count less than VISIBLE_PAGE_COUNT, always show all pages
 func (context *Context) Pagination() *PaginationResult {
-	var pages []Page
-	pagination := context.Searcher.Pagination
-	if pagination.Total <= context.Searcher.Resource.Config.PageCount && pagination.CurrentPage <= 1 {
+	var (
+		pages      []Page
+		pagination = context.Searcher.Pagination
+		pageCount  = PaginationPageCount
+	)
+
+	if context.Searcher.Resource.Config.PageCount > 0 {
+		pageCount = context.Searcher.Resource.Config.PageCount
+	}
+
+	if pagination.Total <= pageCount && pagination.CurrentPage <= 1 {
 		return nil
 	}
 
@@ -956,7 +963,7 @@ func (context *Context) pageTitle() template.HTML {
 
 // FuncMap return funcs map
 func (context *Context) FuncMap() template.FuncMap {
-	htmlSanitizer := bluemonday.UGCPolicy()
+
 	funcMap := template.FuncMap{
 		"current_user":         func() qor.CurrentUser { return context.CurrentUser },
 		"get_resource":         context.Admin.GetResource,
@@ -973,7 +980,7 @@ func (context *Context) FuncMap() template.FuncMap {
 		"flashes":    context.GetFlashes,
 		"pagination": context.Pagination,
 		"escape":     html.EscapeString,
-		"raw":        func(str string) template.HTML { return template.HTML(htmlSanitizer.Sanitize(str)) },
+		"raw":        func(str string) template.HTML { return template.HTML(utils.HTMLSanitizer.Sanitize(str)) },
 		"equal":      equal,
 		"stringify":  utils.Stringify,
 		"lower": func(value interface{}) string {

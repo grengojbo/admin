@@ -23,6 +23,8 @@
     var EVENT_SHOW = 'show.' + NAMESPACE;
     var EVENT_SLIDEOUT_SUBMIT_COMPLEMENT = 'slideoutSubmitComplete.' + NAMESPACE;
     var EVENT_SLIDEOUT_CLOSED = 'slideoutClosed.' + NAMESPACE;
+    var EVENT_SLIDEOUT_LOADED = 'slideoutLoaded.' + NAMESPACE;
+    var EVENT_SLIDEOUT_BEFORESEND = 'slideoutBeforeSend.' + NAMESPACE;
     var EVENT_SHOWN = 'shown.' + NAMESPACE;
     var EVENT_HIDE = 'hide.' + NAMESPACE;
     var EVENT_HIDDEN = 'hidden.' + NAMESPACE;
@@ -34,6 +36,7 @@
     var CLASS_IS_SELECTED = 'is-selected';
     var CLASS_MAIN_CONTENT = '.mdl-layout__content.qor-page';
     var CLASS_HEADER_LOCALE = '.qor-actions__locale';
+    var CLASS_BODY_LOADING = '.qor-body__loading';
 
     function QorSlideout(element, options) {
         this.$element = $(element);
@@ -56,14 +59,10 @@
             var $slideout;
 
             this.$slideout = $slideout = $(QorSlideout.TEMPLATE).appendTo('body');
-            this.$title = $slideout.find('.qor-slideout__title');
-            this.$body = $slideout.find('.qor-slideout__body');
-            this.$bodyClass = $('body').prop('class');
+            this.$slideoutTemplate = $slideout.html();
         },
 
         unbuild: function() {
-            this.$title = null;
-            this.$body = null;
             this.$slideout.remove();
         },
 
@@ -177,6 +176,12 @@
             this.$element.find('[data-url]').removeClass(CLASS_IS_SELECTED);
         },
 
+        addLoading: function() {
+            $(CLASS_BODY_LOADING).remove();
+            var $loading = $(QorSlideout.TEMPLATE_LOADING);
+            $loading.appendTo($('body')).trigger('enable');
+        },
+
         submit: function(e) {
             var $slideout = this.$slideout;
             var $body = this.$body;
@@ -184,6 +189,8 @@
             var $form = $(form);
             var _this = this;
             var $submit = $form.find(':submit');
+
+            $slideout.trigger(EVENT_SLIDEOUT_BEFORESEND);
 
             if (FormData) {
                 e.preventDefault();
@@ -272,6 +279,8 @@
             var method;
             var dataType;
             var load;
+            var $slideout = this.$slideout;
+            var $title;
 
             if (!url) {
                 return;
@@ -291,13 +300,15 @@
                             $content,
                             $qorFormContainer;
 
+                        $(CLASS_BODY_LOADING).remove();
+
                         if (method === 'GET') {
                             $response = $(response);
 
                             $content = $response.find(CLASS_MAIN_CONTENT);
                             $qorFormContainer = $content.find('.qor-form-container');
 
-                            this.slideoutType = $qorFormContainer.size() && $qorFormContainer.data().slideoutType;
+                            this.slideoutType = $qorFormContainer.length && $qorFormContainer.data().slideoutType;
 
                             if (!$content.length) {
                                 return;
@@ -309,14 +320,19 @@
                             if (bodyHtml) {
                                 this.loadExtraResource(bodyHtml, $response, url, response);
                             }
-                            // end
 
                             $content.find('.qor-button--cancel').attr('data-dismiss', 'slideout').removeAttr('href');
-                            this.$title.html($response.find(options.title).html());
+
+                            // reset slideout header and body
+                            $slideout.html(this.$slideoutTemplate);
+                            $title = $slideout.find('.qor-slideout__title');
+                            this.$body = $slideout.find('.qor-slideout__body');
+
+                            $title.html($response.find(options.title).html());
                             this.$body.html($content.html());
                             this.$body.find(CLASS_HEADER_LOCALE).remove();
 
-                            this.$slideout.one(EVENT_SHOWN, function() {
+                            $slideout.one(EVENT_SHOWN, function() {
 
                                 // Enable all Qor components within the slideout
                                 $(this).trigger('enable');
@@ -330,8 +346,8 @@
                             this.show();
 
                             // callback for after slider loaded HTML
+                            // this callback is deprecated, use slideoutLoaded.qor.slideout event.
                             var qorSliderAfterShow = $.fn.qorSliderAfterShow;
-
                             if (qorSliderAfterShow) {
                                 for (var name in qorSliderAfterShow) {
                                     if (qorSliderAfterShow.hasOwnProperty(name) && $.isFunction(qorSliderAfterShow[name])) {
@@ -341,6 +357,8 @@
                                 }
                             }
 
+                            // will trigger slideoutLoaded.qor.slideout event after slideout loaded
+                            $slideout.trigger(EVENT_SLIDEOUT_LOADED, [url, response]);
 
                         } else {
                             if (data.returnUrl) {
@@ -356,7 +374,8 @@
 
                     error: $.proxy(function(response) {
                         var errors;
-                        if ($('.qor-error span').size() > 0) {
+                        $(CLASS_BODY_LOADING).remove();
+                        if ($('.qor-error span').length > 0) {
                             errors = $('.qor-error span').map(function() {
                                 return $(this).text();
                             }).get().join(', ');
@@ -378,6 +397,7 @@
         },
 
         open: function(options) {
+            this.addLoading();
             this.load(options.url, options.data);
         },
 
@@ -438,7 +458,7 @@
 
             $.fn.qorSlideoutBeforeHide = null;
 
-            if ($datePicker.size()) {
+            if ($datePicker.length) {
                 $datePicker.addClass('hidden');
             }
 
@@ -452,9 +472,6 @@
             if (hideEvent.isDefaultPrevented()) {
                 return;
             }
-
-            // empty body html when hide slideout
-            this.$body.html('');
 
             $slideout.
             one(EVENT_TRANSITIONEND, $.proxy(this.hidden, this)).
@@ -493,15 +510,21 @@
     };
 
     QorSlideout.TEMPLATE = (
-        '<div class="qor-slideout">' +
-        '<div class="qor-slideout__header">' +
-        '<button type="button" class="mdl-button mdl-button--icon mdl-js-button mdl-js-repple-effect qor-slideout__close" data-dismiss="slideout">' +
-        '<span class="material-icons">close</span>' +
-        '</button>' +
-        '<h3 class="qor-slideout__title"></h3>' +
-        '</div>' +
-        '<div class="qor-slideout__body"></div>' +
-        '</div>'
+        `<div class="qor-slideout">
+            <div class="qor-slideout__header">
+            <button type="button" class="mdl-button mdl-button--icon mdl-js-button mdl-js-repple-effect qor-slideout__close" data-dismiss="slideout">
+                <span class="material-icons">close</span>
+            </button>
+                <h3 class="qor-slideout__title"></h3>
+            </div>
+            <div class="qor-slideout__body"></div>
+        </div>`
+    );
+
+    QorSlideout.TEMPLATE_LOADING = (
+        `<div class="qor-body__loading">
+            <div><div class="mdl-spinner mdl-js-spinner is-active qor-layout__bottomsheet-spinner"></div></div>
+        </div>`
     );
 
     QorSlideout.plugin = function(options) {

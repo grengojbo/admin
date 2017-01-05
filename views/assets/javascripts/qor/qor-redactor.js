@@ -289,7 +289,7 @@
 
                     callbacks: {
                         init: function() {
-                            var button, buttons = ['html', 'format', 'bold', 'italic', 'deleted', 'lists', 'image', 'file', 'link', 'horizontalrule'];
+                            var button, buttons = ['html', 'format', 'bold', 'italic', 'deleted', 'lists', 'image', 'file', 'link', 'horizontalrule', 'table'];
                             buttons.forEach(function(item) {
                                 button = this.button.get(item);
                                 this.button.setIcon(button, '<i class="material-icons ' + item + '"></i>');
@@ -372,7 +372,7 @@
                             var $linkHtml = this.link.$linkHtml,
                                 description = this.link.description;
 
-                            if (name == 'link' && !this.link.insertedTriggered && $linkHtml.size() && this.link.valueChanged && !this.link.clickCancel) {
+                            if (name == 'link' && !this.link.insertedTriggered && $linkHtml.length && this.link.valueChanged && !this.link.clickCancel) {
                                 if (description) {
                                     $linkHtml.prop('title', description);
                                 } else {

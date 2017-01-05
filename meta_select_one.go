@@ -66,6 +66,9 @@ func (selectOneConfig *SelectOneConfig) ConfigureQORAdminFilter(filter *Filter) 
 
 	selectOneConfig.prepareDataSource(structField, filter.Resource, "!remote_data_filter")
 
+	if len(filter.Operations) == 0 {
+		filter.Operations = []string{"equal"}
+	}
 	filter.Type = "select_one"
 }
 
@@ -85,8 +88,9 @@ func (selectOneConfig *SelectOneConfig) FilterValue(filter *Filter, context *Con
 		result := selectOneConfig.RemoteDataResource.NewStruct()
 		clone := context.Clone()
 		clone.ResourceID = keyword
-		selectOneConfig.RemoteDataResource.CallFindOne(result, nil, clone)
-		return result
+		if selectOneConfig.RemoteDataResource.CallFindOne(result, nil, clone) == nil {
+			return result
+		}
 	}
 
 	return keyword
