@@ -55,7 +55,7 @@ func (context *Context) uniqueKeyOf(value interface{}) interface{} {
 			primaryValues = append(primaryValues, fmt.Sprint(primaryField.Field.Interface()))
 		}
 		primaryValues = append(primaryValues, fmt.Sprint(rand.Intn(1000)))
-		return url.QueryEscape(strings.Join(primaryValues, "_ "))
+		return utils.ToParamString(url.QueryEscape(strings.Join(primaryValues, "_")))
 	}
 	return fmt.Sprint(value)
 }
@@ -315,19 +315,29 @@ func (context *Context) renderMeta(meta *Meta, value interface{}, prefix []strin
 		}
 	}()
 
-	tmpl := template.New(meta.Type + ".tmpl").Funcs(funcsMap)
+	var (
+		tmpl    = template.New(meta.Type + ".tmpl").Funcs(funcsMap)
+		content []byte
+	)
+
 	switch {
 	case meta.Config != nil:
-		if content, err := meta.Config.GetTemplate(context, metaType); err == nil {
-			tmpl, err = tmpl.Parse(string(content))
-			break
+		if templater, ok := meta.Config.(interface {
+			GetTemplate(context *Context, metaType string) ([]byte, error)
+		}); ok {
+			if content, err = templater.GetTemplate(context, metaType); err == nil {
+				tmpl, err = tmpl.Parse(string(content))
+				break
+			}
 		}
 		fallthrough
 	default:
-		if content, err := context.Asset(fmt.Sprintf("%v/metas/%v/%v.tmpl", meta.baseResource.ToParam(), metaType, meta.Name), fmt.Sprintf("metas/%v/%v.tmpl", metaType, meta.Type)); err == nil {
+		if content, err = context.Asset(fmt.Sprintf("%v/metas/%v/%v.tmpl", meta.baseResource.ToParam(), metaType, meta.Name), fmt.Sprintf("metas/%v/%v.tmpl", metaType, meta.Type)); err == nil {
 			tmpl, err = tmpl.Parse(string(content))
-		} else {
+		} else if metaType == "index" {
 			tmpl, err = tmpl.Parse("{{.Value}}")
+		} else {
+			err = fmt.Errorf("haven't found %v template for meta %v", metaType, meta.Name)
 		}
 	}
 
@@ -344,7 +354,7 @@ func (context *Context) renderMeta(meta *Meta, value interface{}, prefix []strin
 		}
 
 		if !scope.PrimaryKeyZero() {
-			data["InputId"] = fmt.Sprintf("%v_%v_%v", scope.GetModelStruct().ModelType.Name(), scope.PrimaryKeyValue(), meta.Name)
+			data["InputId"] = utils.ToParamString(fmt.Sprintf("%v_%v_%v", scope.GetModelStruct().ModelType.Name(), scope.PrimaryKeyValue(), meta.Name))
 		}
 
 		data["CollectionValue"] = func() [][]string {
@@ -358,7 +368,9 @@ func (context *Context) renderMeta(meta *Meta, value interface{}, prefix []strin
 	}
 
 	if err != nil {
-		utils.ExitWithMsg(fmt.Sprintf("got error when render %v template for %v(%v):%v", metaType, meta.Name, meta.Type, err))
+		msg := fmt.Sprintf("got error when render %v template for %v(%v): %v", metaType, meta.Name, meta.Type, err)
+		fmt.Fprint(writer, msg)
+		utils.ExitWithMsg(msg)
 	}
 }
 
@@ -1026,6 +1038,18 @@ func (context *Context) FuncMap() template.FuncMap {
 		"meta_label": func(meta *Meta) template.HTML {
 			key := fmt.Sprintf("%v.attributes.%v", meta.baseResource.ToParam(), meta.Label)
 			return context.Admin.T(context.Context, key, meta.Label)
+		},
+		"meta_placeholder": func(meta *Meta, context *Context, placeholder string) template.HTML {
+			if getPlaceholder, ok := meta.Config.(interface {
+				GetPlaceholder(*Context) (template.HTML, bool)
+			}); ok {
+				if str, ok := getPlaceholder.GetPlaceholder(context); ok {
+					return str
+				}
+			}
+
+			key := fmt.Sprintf("%v.attributes.%v.placeholder", meta.baseResource.ToParam(), meta.Label)
+			return context.Admin.T(context.Context, key, placeholder)
 		},
 
 		"url_for":            context.URLFor,
