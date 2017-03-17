@@ -71,6 +71,16 @@ func (context *Context) newResourcePath(res *Resource) string {
 	return path.Join(context.URLFor(res), "new")
 }
 
+// RoutePrefix return route prefix of resource
+func (res *Resource) RoutePrefix() string {
+	var params string
+	for res.ParentResource != nil {
+		params = path.Join(res.ParentResource.ToParam(), res.ParentResource.ParamIDName(), params)
+		res = res.ParentResource
+	}
+	return params
+}
+
 // URLFor generate url for resource value
 //     context.URLFor(&Product{})
 //     context.URLFor(&Product{ID: 111})
@@ -112,17 +122,28 @@ func (context *Context) URLFor(value interface{}, resources ...*Resource) string
 				primaryValues = map[string]string{}
 			)
 
-			if primaryField != nil {
-				primaryKey = fmt.Sprint(reflect.Indirect(primaryField.Field).Interface())
-			}
+			if len(res.PrimaryFields) > 0 {
+				var primaryFieldValues []string
+				for _, primaryField := range res.PrimaryFields {
+					if field, ok := scope.FieldByName(primaryField.Name); ok {
+						primaryFieldValues = append(primaryFieldValues, fmt.Sprint(field.Field.Interface())) // TODO improve me
+					}
+				}
+				primaryKey = strings.Join(primaryFieldValues, ",")
+			} else {
+				if primaryField != nil {
+					primaryKey = fmt.Sprint(reflect.Indirect(primaryField.Field).Interface())
+				}
 
-			for _, field := range scope.PrimaryFields() {
-				if field.DBName != primaryField.DBName {
-					primaryValues[fmt.Sprintf("primary_key[%v_%v]", scope.TableName(), field.DBName)] = fmt.Sprint(reflect.Indirect(field.Field).Interface())
+				for _, field := range scope.PrimaryFields() {
+					if field.DBName != primaryField.DBName {
+						primaryValues[fmt.Sprintf("primary_key[%v_%v]", scope.TableName(), field.DBName)] = fmt.Sprint(reflect.Indirect(field.Field).Interface())
+					}
 				}
 			}
 
 			result := path.Join(getPrefix(res), res.ToParam(), primaryKey)
+
 			if len(primaryValues) > 0 {
 				var primaryValueParams []string
 				for key, value := range primaryValues {
