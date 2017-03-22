@@ -616,11 +616,15 @@ func (context *Context) Pagination() *PaginationResult {
 	var (
 		pages      []Page
 		pagination = context.Searcher.Pagination
-		pageCount  = PaginationPageCount
+		pageCount  = pagination.PerPage
 	)
 
-	if context.Searcher.Resource.Config.PageCount > 0 {
-		pageCount = context.Searcher.Resource.Config.PageCount
+	if pageCount == 0 {
+		if context.Resource != nil && context.Resource.Config.PageCount != 0 {
+			pageCount = context.Resource.Config.PageCount
+		} else {
+			pageCount = PaginationPageCount
+		}
 	}
 
 	if pagination.Total <= pageCount && pagination.CurrentPage <= 1 {
