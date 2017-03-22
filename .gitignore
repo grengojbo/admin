@@ -7,7 +7,7 @@ worker_data
 *.exe
 /test/integration/integration
 /test/integration/public
-.idea/workspace.xml
+.idea/
 
 # Example
 /example/example
