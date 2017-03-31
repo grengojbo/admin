@@ -40,6 +40,8 @@ type Menu struct {
 
 	subMenus []*Menu
 	router   *Router
+
+	Invisible  bool
 }
 
 // URL return menu's URL
