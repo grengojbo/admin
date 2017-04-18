@@ -249,10 +249,20 @@
         search: function () {
             var $bottomsheets = this.$bottomsheets,
                 param = '?keyword=',
-                baseUrl = $bottomsheets.data().url,
-                searchValue = $.trim($bottomsheets.find(CLASS_BOTTOMSHEETS_INPUT).val()),
+                baseUrl = $bottomsheets.data().url;
+            if (typeof baseUrl === "undefined") {
+                if (this.filterURL.length > 1) {
+                    var urlparts = this.filterURL.split('?');
+                    if (urlparts.length >= 2) {
+                        baseUrl = urlparts[0];
+                    } else {
+                        baseUrl = this.filterURL;
+                    }
+                    // baseUrl = this.filterURL;
+                }
+            }
+            var searchValue = $.trim($bottomsheets.find(CLASS_BOTTOMSHEETS_INPUT).val()),
                 url = baseUrl + param + searchValue;
-
             this.reload(url);
         },
 
