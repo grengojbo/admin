@@ -2,27 +2,35 @@ package admin
 
 import (
 	"html/template"
-	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 
+	"github.com/jinzhu/gorm"
 	"github.com/jinzhu/inflection"
+	"github.com/qor/assetfs"
 	"github.com/qor/qor"
 	"github.com/qor/qor/resource"
 	"github.com/qor/qor/utils"
+	"github.com/qor/session"
+	"github.com/qor/session/manager"
 	"github.com/theplant/cldr"
 )
 
+// AdminConfig admin config struct
+type AdminConfig struct {
+	// SiteName set site's name, the name will be used as admin HTML title and admin interface will auto load javascripts, stylesheets files based on its value
+	SiteName       string
+	DB             *gorm.DB
+	Auth           Auth
+	AssetFS        assetfs.Interface
+	SessionManager session.ManagerInterface
+	I18n           I18n
+	*Transformer
+}
+
 // Admin is a struct that used to generate admin/api interface
 type Admin struct {
-	SiteName string
-	Config   *qor.Config
-	I18n     I18n
-	AssetFS  AssetFSInterface
-	Auth     Auth
-	*Encoding
-
+	*AdminConfig
 	menus            []*Menu
 	resources        []*Resource
 	searchResources  []*Resource
@@ -31,22 +39,36 @@ type Admin struct {
 	metaConfigorMaps map[string]func(*Meta)
 }
 
-// ResourceNamer is an interface for models that defined method `ResourceName`
-type ResourceNamer interface {
-	ResourceName() string
-}
-
 // New new admin with configuration
-func New(config *qor.Config) *Admin {
+func New(config interface{}) *Admin {
 	admin := Admin{
-		Config:           config,
 		funcMaps:         make(template.FuncMap),
 		router:           newRouter(),
-		metaConfigorMaps: metaConfigorMaps,
-		Encoding:         DefaultEncoding,
+		metaConfigorMaps: defaultMetaConfigorMaps,
 	}
 
-	admin.SetAssetFS(&AssetFileSystem{})
+	if c, ok := config.(*qor.Config); ok {
+		admin.AdminConfig = &AdminConfig{DB: c.DB}
+	} else if c, ok := config.(*AdminConfig); ok {
+		admin.AdminConfig = c
+	} else {
+		admin.AdminConfig = &AdminConfig{}
+	}
+
+	if admin.SessionManager == nil {
+		admin.SessionManager = manager.SessionManager
+	}
+
+	if admin.Transformer == nil {
+		admin.Transformer = DefaultTransformer
+	}
+
+	if admin.AssetFS == nil {
+		admin.AssetFS = assetfs.AssetFS().NameSpace("admin")
+	}
+
+	admin.SetAssetFS(admin.AssetFS)
+
 	admin.registerCompositePrimaryKeyCallback()
 	return &admin
 }
@@ -63,11 +85,11 @@ func (admin *Admin) SetAuth(auth Auth) {
 }
 
 // SetAssetFS set AssetFS for admin
-func (admin *Admin) SetAssetFS(assetFS AssetFSInterface) {
+func (admin *Admin) SetAssetFS(assetFS assetfs.Interface) {
 	admin.AssetFS = assetFS
 	globalAssetFSes = append(globalAssetFSes, assetFS)
 
-	admin.AssetFS.RegisterPath(filepath.Join(root, "app/views/qor"))
+	admin.AssetFS.RegisterPath(filepath.Join(utils.AppRoot, "app/views/qor"))
 	admin.RegisterViewPath("github.com/qor/admin/views")
 
 	for _, viewPath := range globalViewPaths {
@@ -77,8 +99,8 @@ func (admin *Admin) SetAssetFS(assetFS AssetFSInterface) {
 
 // RegisterViewPath register view path for admin
 func (admin *Admin) RegisterViewPath(pth string) {
-	if admin.AssetFS.RegisterPath(filepath.Join(root, "vendor", pth)) != nil {
-		for _, gopath := range strings.Split(os.Getenv("GOPATH"), ":") {
+	if admin.AssetFS.RegisterPath(filepath.Join(utils.AppRoot, "vendor", pth)) != nil {
+		for _, gopath := range utils.GOPATH() {
 			if admin.AssetFS.RegisterPath(filepath.Join(gopath, "src", pth)) == nil {
 				break
 			}
@@ -112,10 +134,9 @@ func (admin *Admin) newResource(value interface{}, config ...*Config) *Resource 
 	}
 
 	res := &Resource{
-		Resource:    resource.New(value),
-		Config:      configuration,
-		cachedMetas: &map[string][]*Meta{},
-		admin:       admin,
+		Resource: resource.New(value),
+		Config:   configuration,
+		admin:    admin,
 	}
 
 	res.Permission = configuration.Permission
@@ -216,13 +237,6 @@ func (admin *Admin) GetResource(name string) (resource *Resource) {
 // AddSearchResource make a resource searchable from search center
 func (admin *Admin) AddSearchResource(resources ...*Resource) {
 	admin.searchResources = append(admin.searchResources, resources...)
-}
-
-// I18n define admin's i18n interface
-type I18n interface {
-	Scope(scope string) I18n
-	Default(value string) I18n
-	T(locale string, key string, args ...interface{}) template.HTML
 }
 
 // T call i18n backend to translate

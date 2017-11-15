@@ -10,7 +10,6 @@
         factory(jQuery);
     }
 })(function($) {
-
     'use strict';
 
     var location = window.location;
@@ -30,7 +29,7 @@
     }
 
     function encodeSearch(data, detached) {
-        var search = location.search;
+        var search = decodeURI(location.search);
         var params;
 
         if ($.isArray(data)) {
@@ -56,7 +55,7 @@
         var data = [];
 
         if (search && search.indexOf('?') > -1) {
-            search = search.split('?')[1];
+            search = search.replace(/\+/g, ' ').split('?')[1];
 
             if (search && search.indexOf('#') > -1) {
                 search = search.split('#')[0];
@@ -102,15 +101,11 @@
         bind: function() {
             var options = this.options;
 
-            this.$element.
-            on(EVENT_CLICK, options.label, $.proxy(this.toggle, this)).
-            on(EVENT_CHANGE, options.group, $.proxy(this.toggle, this));
+            this.$element.on(EVENT_CLICK, options.label, $.proxy(this.toggle, this)).on(EVENT_CHANGE, options.group, $.proxy(this.toggle, this));
         },
 
         unbind: function() {
-            this.$element.
-            off(EVENT_CLICK, this.toggle).
-            off(EVENT_CHANGE, this.toggle);
+            this.$element.off(EVENT_CLICK, this.toggle).off(EVENT_CHANGE, this.toggle);
         },
 
         toggle: function(e) {
@@ -126,7 +121,8 @@
             var paramName;
 
             if ($target.is('select')) {
-                params = decodeSearch(location.search);
+                params = decodeSearch(decodeURI(location.search));
+
                 paramName = name = $target.attr('name');
                 value = $target.val();
                 param = [name];
@@ -181,8 +177,6 @@
             } else {
                 location.search = search;
             }
-
-
         },
 
         destroy: function() {
@@ -210,7 +204,7 @@
                 $this.data(NAMESPACE, (data = new QorFilter(this, options)));
             }
 
-            if (typeof options === 'string' && $.isFunction(fn = data[options])) {
+            if (typeof options === 'string' && $.isFunction((fn = data[options]))) {
                 fn.apply(data);
             }
         });
@@ -223,16 +217,15 @@
             group: 'select'
         };
 
-        $(document).
-        on(EVENT_DISABLE, function(e) {
-            QorFilter.plugin.call($(selector, e.target), 'destroy');
-        }).
-        on(EVENT_ENABLE, function(e) {
-            QorFilter.plugin.call($(selector, e.target), options);
-        }).
-        triggerHandler(EVENT_ENABLE);
+        $(document)
+            .on(EVENT_DISABLE, function(e) {
+                QorFilter.plugin.call($(selector, e.target), 'destroy');
+            })
+            .on(EVENT_ENABLE, function(e) {
+                QorFilter.plugin.call($(selector, e.target), options);
+            })
+            .triggerHandler(EVENT_ENABLE);
     });
 
     return QorFilter;
-
 });

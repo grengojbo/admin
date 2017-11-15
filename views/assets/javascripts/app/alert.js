@@ -1,13 +1,13 @@
-$(function () {
+$(function() {
+    'use strict';
 
-  'use strict';
+    $(document).on('click.qor.alert', '[data-dismiss="alert"]', function() {
+        $(this)
+            .closest('.qor-alert')
+            .removeClass('qor-alert__active');
+    });
 
-  $(document).on('click.qor.alert', '[data-dismiss="alert"]', function () {
-    $(this).closest('.qor-alert').remove();
-  });
-
-  setTimeout(function () {
-    $('.qor-alert[data-dismissible="true"]').remove();
-  }, 5000);
-
+    setTimeout(function() {
+        $('.qor-alert[data-dismissible="true"]').removeClass('qor-alert__active');
+    }, 5000);
 });

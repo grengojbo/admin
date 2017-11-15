@@ -1,4 +1,4 @@
-(function (factory) {
+(function(factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as anonymous module.
         define(['jquery'], factory);
@@ -9,8 +9,7 @@
         // Browser globals.
         factory(jQuery);
     }
-})(function ($) {
-
+})(function($) {
     'use strict';
 
     var NAMESPACE = 'qor.datepicker';
@@ -26,7 +25,7 @@
     function replaceText(str, data) {
         if (typeof str === 'string') {
             if (typeof data === 'object') {
-                $.each(data, function (key, val) {
+                $.each(data, function(key, val) {
                     str = str.replace('$[' + String(key).toLowerCase() + ']', val);
                 });
             }
@@ -46,24 +45,32 @@
     }
 
     QorDatepicker.prototype = {
-        init: function () {
+        init: function() {
+            if (
+                this.$element
+                    .closest(CLASS_PARENT)
+                    .find(this.pickerData.targetInput)
+                    .is(':disabled')
+            ) {
+                this.$element.remove();
+                return;
+            }
             this.bind();
         },
 
-        bind: function () {
+        bind: function() {
             this.$element.on(EVENT_CLICK, $.proxy(this.show, this));
         },
 
-        unbind: function () {
+        unbind: function() {
             this.$element.off(EVENT_CLICK, this.show);
         },
 
-        build: function () {
+        build: function() {
             let $modal,
                 $ele = this.$element,
                 data = this.pickerData,
                 date = $ele.val() ? new Date($ele.val()) : new Date(),
-
                 datepickerOptions = {
                     date: date,
                     inline: true
@@ -91,14 +98,12 @@
                 .qorDatepicker(datepickerOptions)
                 .triggerHandler(EVENT_CHANGE);
 
-            $modal
-                .find(CLASS_SAVE)
-                .on(EVENT_CLICK, $.proxy(this.pick, this));
+            $modal.find(CLASS_SAVE).on(EVENT_CLICK, $.proxy(this.pick, this));
 
             this.built = true;
         },
 
-        unbuild: function () {
+        unbuild: function() {
             if (!this.built) {
                 return;
             }
@@ -114,7 +119,7 @@
                 .remove();
         },
 
-        change: function (e) {
+        change: function(e) {
             var $modal = this.$modal;
             var $target = $(e.target);
             var date;
@@ -123,14 +128,14 @@
             this.formatDate = $target.qorDatepicker('getDate', true);
 
             $modal.find('.qor-datepicker__picked-year').text(date.getFullYear());
-            $modal.find('.qor-datepicker__picked-date').text([
-                $target.qorDatepicker('getDayName', date.getDay(), true) + ',',
-                String($target.qorDatepicker('getMonthName', date.getMonth(), true)),
-                date.getDate()
-            ].join(' '));
+            $modal
+                .find('.qor-datepicker__picked-date')
+                .text(
+                    [$target.qorDatepicker('getDayName', date.getDay(), true) + ',', String($target.qorDatepicker('getMonthName', date.getMonth(), true)), date.getDate()].join(' ')
+                );
         },
 
-        show: function () {
+        show: function() {
             if (!this.built) {
                 this.build();
             }
@@ -138,7 +143,7 @@
             this.$modal.qorModal('show');
         },
 
-        pick: function () {
+        pick: function() {
             let targetInputClass = this.pickerData.targetInput,
                 $element = this.$element,
                 $parent = $element.closest(CLASS_PARENT),
@@ -162,7 +167,7 @@
             this.$modal.qorModal('hide');
         },
 
-        destroy: function () {
+        destroy: function() {
             this.unbind();
             this.unbuild();
             this.$element.removeData(NAMESPACE);
@@ -177,8 +182,7 @@
         }
     };
 
-    QorDatepicker.TEMPLATE = (
-        `<div class="qor-modal fade qor-datepicker" tabindex="-1" role="dialog" aria-hidden="true">
+    QorDatepicker.TEMPLATE = `<div class="qor-modal fade qor-datepicker" tabindex="-1" role="dialog" aria-hidden="true">
             <div class="mdl-card mdl-shadow--2dp" role="document">
                 <div class="mdl-card__title">
                     <h2 class="mdl-card__title-text">$[title]</h2>
@@ -191,15 +195,14 @@
                     <div class="qor-datepicker__embedded"></div>
                 </div>
                 <div class="mdl-card__actions">
-                    <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect qor-datepicker__save">$[ok]</a>
-                    <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" data-dismiss="modal">$[cancel]</a>
+                    <a class="mdl-button mdl-button--colored  mdl-button--raised qor-datepicker__save">$[ok]</a>
+                    <a class="mdl-button mdl-button--colored " data-dismiss="modal">$[cancel]</a>
                 </div>
             </div>
-        </div>`
-    );
+        </div>`;
 
-    QorDatepicker.plugin = function (option) {
-        return this.each(function () {
+    QorDatepicker.plugin = function(option) {
+        return this.each(function() {
             var $this = $(this);
             var data = $this.data(NAMESPACE);
             var options;
@@ -218,25 +221,24 @@
                 $this.data(NAMESPACE, (data = new QorDatepicker(this, options)));
             }
 
-            if (typeof option === 'string' && $.isFunction(fn = data[option])) {
+            if (typeof option === 'string' && $.isFunction((fn = data[option]))) {
                 fn.apply(data);
             }
         });
     };
 
-    $(function () {
+    $(function() {
         var selector = '[data-toggle="qor.datepicker"]';
 
-        $(document).
-        on(EVENT_DISABLE, function (e) {
-            QorDatepicker.plugin.call($(selector, e.target), 'destroy');
-        }).
-        on(EVENT_ENABLE, function (e) {
-            QorDatepicker.plugin.call($(selector, e.target));
-        }).
-        triggerHandler(EVENT_ENABLE);
+        $(document)
+            .on(EVENT_DISABLE, function(e) {
+                QorDatepicker.plugin.call($(selector, e.target), 'destroy');
+            })
+            .on(EVENT_ENABLE, function(e) {
+                QorDatepicker.plugin.call($(selector, e.target));
+            })
+            .triggerHandler(EVENT_ENABLE);
     });
 
     return QorDatepicker;
-
 });

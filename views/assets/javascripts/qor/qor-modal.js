@@ -1,4 +1,4 @@
-(function (factory) {
+(function(factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as anonymous module.
         define(['jquery'], factory);
@@ -9,26 +9,25 @@
         // Browser globals.
         factory(jQuery);
     }
-})(function ($) {
-
+})(function($) {
     'use strict';
 
-    var $document = $(document);
-    var NAMESPACE = 'qor.modal';
-    var EVENT_ENABLE = 'enable.' + NAMESPACE;
-    var EVENT_DISABLE = 'disable.' + NAMESPACE;
-    var EVENT_CLICK = 'click.' + NAMESPACE;
-    var EVENT_KEYUP = 'keyup.' + NAMESPACE;
-    var EVENT_SHOW = 'show.' + NAMESPACE;
-    var EVENT_SHOWN = 'shown.' + NAMESPACE;
-    var EVENT_HIDE = 'hide.' + NAMESPACE;
-    var EVENT_HIDDEN = 'hidden.' + NAMESPACE;
-    var EVENT_TRANSITION_END = 'transitionend';
-    var CLASS_OPEN = 'qor-modal-open';
-    var CLASS_SHOWN = 'shown';
-    var CLASS_FADE = 'fade';
-    var CLASS_IN = 'in';
-    var ARIA_HIDDEN = 'aria-hidden';
+    let $document = $(document),
+        NAMESPACE = 'qor.modal',
+        EVENT_ENABLE = 'enable.' + NAMESPACE,
+        EVENT_DISABLE = 'disable.' + NAMESPACE,
+        EVENT_CLICK = 'click.' + NAMESPACE,
+        EVENT_KEYUP = 'keyup.' + NAMESPACE,
+        EVENT_SHOW = 'show.' + NAMESPACE,
+        EVENT_SHOWN = 'shown.' + NAMESPACE,
+        EVENT_HIDE = 'hide.' + NAMESPACE,
+        EVENT_HIDDEN = 'hidden.' + NAMESPACE,
+        EVENT_TRANSITION_END = 'transitionend',
+        CLASS_OPEN = 'qor-modal-open',
+        CLASS_SHOWN = 'shown',
+        CLASS_FADE = 'fade',
+        CLASS_IN = 'in',
+        ARIA_HIDDEN = 'aria-hidden';
 
     function QorModal(element, options) {
         this.$element = $(element);
@@ -41,7 +40,7 @@
     QorModal.prototype = {
         constructor: QorModal,
 
-        init: function () {
+        init: function() {
             this.fadable = this.$element.hasClass(CLASS_FADE);
 
             if (this.options.show) {
@@ -51,7 +50,7 @@
             }
         },
 
-        bind: function () {
+        bind: function() {
             this.$element.on(EVENT_CLICK, $.proxy(this.click, this));
 
             if (this.options.keyboard) {
@@ -59,7 +58,7 @@
             }
         },
 
-        unbind: function () {
+        unbind: function() {
             this.$element.off(EVENT_CLICK, this.click);
 
             if (this.options.keyboard) {
@@ -67,7 +66,7 @@
             }
         },
 
-        click: function (e) {
+        click: function(e) {
             var element = this.$element[0];
             var target = e.target;
 
@@ -86,13 +85,13 @@
             }
         },
 
-        keyup: function (e) {
+        keyup: function(e) {
             if (e.which === 27) {
                 this.hide();
             }
         },
 
-        show: function (noTransition) {
+        show: function(noTransition) {
             var $this = this.$element,
                 showEvent;
 
@@ -110,7 +109,10 @@
             $document.find('body').addClass(CLASS_OPEN);
 
             /*jshint expr:true */
-            $this.addClass(CLASS_SHOWN).scrollTop(0).get(0).offsetHeight; // reflow for transition
+            $this
+                .addClass(CLASS_SHOWN)
+                .scrollTop(0)
+                .get(0).offsetHeight; // reflow for transition
             this.transitioning = true;
 
             if (noTransition || !this.fadable) {
@@ -123,13 +125,16 @@
             $this.addClass(CLASS_IN);
         },
 
-        shown: function () {
+        shown: function() {
             this.transitioning = false;
             this.bind();
-            this.$element.attr(ARIA_HIDDEN, false).trigger(EVENT_SHOWN).focus();
+            this.$element
+                .attr(ARIA_HIDDEN, false)
+                .trigger(EVENT_SHOWN)
+                .focus();
         },
 
-        hide: function (noTransition) {
+        hide: function(noTransition) {
             var $this = this.$element,
                 hideEvent;
 
@@ -157,13 +162,16 @@
             $this.removeClass(CLASS_IN);
         },
 
-        hidden: function () {
+        hidden: function() {
             this.transitioning = false;
             this.unbind();
-            this.$element.removeClass(CLASS_SHOWN).attr(ARIA_HIDDEN, true).trigger(EVENT_HIDDEN);
+            this.$element
+                .removeClass(CLASS_SHOWN)
+                .attr(ARIA_HIDDEN, true)
+                .trigger(EVENT_HIDDEN);
         },
 
-        toggle: function () {
+        toggle: function() {
             if (this.$element.hasClass(CLASS_IN)) {
                 this.hide();
             } else {
@@ -171,7 +179,7 @@
             }
         },
 
-        destroy: function () {
+        destroy: function() {
             this.$element.removeData(NAMESPACE);
         }
     };
@@ -182,8 +190,8 @@
         show: true
     };
 
-    QorModal.plugin = function (options) {
-        return this.each(function () {
+    QorModal.plugin = function(options) {
+        return this.each(function() {
             var $this = $(this);
             var data = $this.data(NAMESPACE);
             var fn;
@@ -196,7 +204,7 @@
                 $this.data(NAMESPACE, (data = new QorModal(this, options)));
             }
 
-            if (typeof options === 'string' && $.isFunction(fn = data[options])) {
+            if (typeof options === 'string' && $.isFunction((fn = data[options]))) {
                 fn.apply(data);
             }
         });
@@ -204,25 +212,24 @@
 
     $.fn.qorModal = QorModal.plugin;
 
-    $(function () {
+    $(function() {
         var selector = '.qor-modal';
 
-        $(document).
-        on(EVENT_CLICK, '[data-toggle="qor.modal"]', function () {
-            var $this = $(this);
-            var data = $this.data();
-            var $target = $(data.target || $this.attr('href'));
+        $(document)
+            .on(EVENT_CLICK, '[data-toggle="qor.modal"]', function() {
+                var $this = $(this);
+                var data = $this.data();
+                var $target = $(data.target || $this.attr('href'));
 
-            QorModal.plugin.call($target, $target.data(NAMESPACE) ? 'toggle' : data);
-        }).
-        on(EVENT_DISABLE, function (e) {
-            QorModal.plugin.call($(selector, e.target), 'destroy');
-        }).
-        on(EVENT_ENABLE, function (e) {
-            QorModal.plugin.call($(selector, e.target));
-        });
+                QorModal.plugin.call($target, $target.data(NAMESPACE) ? 'toggle' : data);
+            })
+            .on(EVENT_DISABLE, function(e) {
+                QorModal.plugin.call($(selector, e.target), 'destroy');
+            })
+            .on(EVENT_ENABLE, function(e) {
+                QorModal.plugin.call($(selector, e.target));
+            });
     });
 
     return QorModal;
-
 });

@@ -17,17 +17,17 @@
     @include clearfix();
     .mdl-button {
         float: right;
-        +.mdl-button {
+        + .mdl-button {
             margin-right: 8px;
         }
     }
 }
 
-.mdl-switch{
-  width: auto;
-  &.is-upgraded {
-      padding-right: 28px;
-  }
+.mdl-switch {
+    width: auto;
+    &.is-upgraded {
+        padding-right: 28px;
+    }
 }
 
 .mdl-textfield textarea.mdl-textfield__input {
@@ -51,7 +51,7 @@
         top: 10px;
     }
     .qor-search__label {
-        color: unquote("rgba(#{$color-black}, 0.54)");
+        color: unquote('rgba(#{$color-black}, 0.54)');
     }
     .qor-search__input {
         font-size: 14px;
@@ -81,7 +81,7 @@
     display: block;
     max-width: 100%;
     font-size: 12px;
-    color: unquote("rgba(#{$color-black}, 0.54)");
+    color: unquote('rgba(#{$color-black}, 0.54)');
     font-weight: 500;
 }
 
@@ -110,7 +110,7 @@
     margin-bottom: 20px;
 }
 
-[data-upgraded]>.qor-field__show {
+[data-upgraded] > .qor-field__show {
     margin-bottom: 0;
 }
 
@@ -161,24 +161,24 @@ button.qor-fieldset__add,
         .qor-field__label,
         .qor-field__error,
         .mdl-textfield__label {
-            color: unquote("rgb(#{$color-accent})");
+            color: unquote('rgb(#{$color-accent})');
         }
         .qor-field__error {
             display: block;
             font-size: 12px;
-            >i {
+            > i {
                 font-size: 18px;
                 vertical-align: top;
             }
-            >span {
-                +span {
+            > span {
+                + span {
                     margin-left: 8px;
                 }
             }
         }
         .mdl-textfield,
         .qor-field__block {
-            +.qor-field__error {
+            + .qor-field__error {
                 margin-top: -16px;
             }
         }
@@ -194,14 +194,15 @@ button.qor-fieldset__add,
 // Custom modifier for .mdl-textfield
 .qor-field {
     .mdl-textfield__label {
-        color: unquote("rgba(#{$color-black}, 0.54)");
+        color: unquote('rgba(#{$color-black}, 0.54)');
         font-size: 12px;
         top: 4px;
     }
     .mdl-textfield__input {
         font-size: 14px;
     }
-    .mdl-textfield.is-dirty .mdl-textfield__label {
+    .mdl-textfield.is-dirty .mdl-textfield__label,
+    .mdl-textfield.has-placeholder .mdl-textfield__label {
         visibility: visible;
     }
 }
@@ -227,16 +228,29 @@ button.qor-fieldset__add,
     position: relative;
     display: block;
     margin-top: 8px;
+    &.is-svg {
+        .qor-file__list {
+            > ul {
+                > li {
+                    text-align: center;
+                    img {
+                        display: inline-block;
+                        max-width: 90%;
+                    }
+                }
+            }
+        }
+    }
 }
 
 .qor-file__list {
     overflow: hidden;
-    >ul {
+    > ul {
         margin-top: 12px;
         margin-bottom: 0;
         padding-left: 0;
         list-style: none;
-        >li {
+        > li {
             position: relative;
             float: left;
             display: block;
@@ -244,21 +258,19 @@ button.qor-fieldset__add,
             height: 150px;
             margin-right: 10px;
             margin-bottom: 10px;
-            border: 1px solid unquote("rgba(#{$color-black}, 0.12)");
-            background-color: unquote("rgb(#{$color-white})");
+            border: 1px solid unquote('rgba(#{$color-black}, 0.12)');
+            background-color: unquote('rgb(#{$color-white})');
             overflow: hidden;
-            >span {
+            > span {
                 position: absolute;
-                right: 0;
                 bottom: 0;
-                left: 0;
-                z-index: 1;
-                display: block;
+                width: 100%;
+                box-sizing: border-box;
                 padding: 5px;
                 font-size: 12px;
                 line-height: 20px;
                 text-align: center;
-                background-color: unquote("rgba(#{$color-white}, 0.5)");
+                background-color: unquote('rgba(#{$color-white}, 0.5)');
                 &:first-letter {
                     text-transform: uppercase;
                 }
@@ -277,8 +289,8 @@ button.qor-fieldset__add,
         display: inline-block;
         width: 150px;
         height: 80px;
-        border: 1px solid unquote("rgba(#{$color-black}, 0.12)");
-        background-color: unquote("rgb(#{$color-white})");
+        border: 1px solid unquote('rgba(#{$color-black}, 0.12)');
+        background-color: unquote('rgb(#{$color-white})');
         margin-top: 12px;
         .qor-file__action {
             position: absolute;
@@ -290,9 +302,8 @@ button.qor-fieldset__add,
             display: block;
             padding: 5px;
             font-size: 12px;
-            line-height: 20px;
             text-align: center;
-            background-color: unquote("rgba(#{$color-black}, 0.75)");
+            background-color: unquote('rgba(#{$color-black}, 0.75)');
             opacity: 0;
             a {
                 display: inline-block;
@@ -302,7 +313,7 @@ button.qor-fieldset__add,
                 margin-top: 16%;
                 &:hover {
                     i {
-                        color: unquote("rgb(#{$color-primary})");
+                        color: unquote('rgb(#{$color-primary})');
                     }
                 }
             }
@@ -312,11 +323,11 @@ button.qor-fieldset__add,
                 opacity: 1;
             }
         }
-        >span {
+        > span {
             display: flex;
             font-size: 12px;
-            width: 100%;
             align-items: center;
+            line-height: 1.1;
             height: 80px;
             img {
                 display: block;
@@ -329,7 +340,7 @@ button.qor-fieldset__add,
                 box-sizing: border-box;
                 padding: 0 12px;
                 text-align: center;
-                word-break: break-word;
+                word-break: break-all;
             }
         }
     }
@@ -344,17 +355,20 @@ button.qor-fieldset__add,
     padding: 16px 24px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     background-color: #fff;
+    &.qor-fieldset--new {
+        display: none;
+    }
     .mdl-textfield__input {
         margin-top: 10px;
     }
     .qor-fieldset {
-        background-color: unquote("rgb(#{$palette-grey-50})");
+        background-color: unquote('rgb(#{$palette-grey-50})');
         box-shadow: none;
-        border: 1px solid unquote("rgba(#{$color-black}, 0.12)");
+        border: 1px solid unquote('rgba(#{$color-black}, 0.12)');
         .qor-fieldset {
             background-color: #fff;
             .qor-fieldset {
-                background-color: unquote("rgb(#{$palette-grey-50})");
+                background-color: unquote('rgb(#{$palette-grey-50})');
             }
         }
     }
@@ -412,16 +426,16 @@ button.qor-fieldset__add,
 
 ::-webkit-input-placeholder {
     /* WebKit, Blink, Edge */
-    color: unquote("rgba(#{$color-black}, 0.12)");
+    color: unquote('rgba(#{$color-black}, 0.12)');
 }
 
 ::-moz-placeholder {
     /* Mozilla Firefox 19+ */
-    color: unquote("rgba(#{$color-black}, 0.12)");
+    color: unquote('rgba(#{$color-black}, 0.12)');
     opacity: 1;
 }
 
 :-ms-input-placeholder {
     /* Internet Explorer 10-11 */
-    color: unquote("rgba(#{$color-black}, 0.12)");
+    color: unquote('rgba(#{$color-black}, 0.12)');
 }

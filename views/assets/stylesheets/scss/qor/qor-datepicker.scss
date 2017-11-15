@@ -13,7 +13,7 @@
 .qor-datepicker__picked {
     padding: 16px 24px;
     color: #fff;
-    background-color: unquote("rgb(#{$color-primary})");
+    background-color: unquote('rgb(#{$color-primary})');
 }
 
 .qor-datepicker__picked-year {
@@ -34,9 +34,9 @@
         position: static;
         width: auto;
     }
-    .datepicker-panel>ul>li[data-view='month current'],
-    .datepicker-panel>ul>li[data-view='years current'],
-    .datepicker-panel>ul>li[data-view='year current'] {
+    .datepicker-panel > ul > li[data-view='month current'],
+    .datepicker-panel > ul > li[data-view='years current'],
+    .datepicker-panel > ul > li[data-view='year current'] {
         width: 200px;
     }
     .datepicker-panel {
@@ -73,7 +73,7 @@
     }
     .datepicker-panel .picked,
     .datepicker-panel .picked:hover {
-        background-color: unquote("rgb(#{$color-primary})");
+        background-color: unquote('rgb(#{$color-primary})');
         color: #fff;
     }
 }
@@ -81,6 +81,12 @@
 .qor-field__datetimepicker,
 .qor-field__datepicker {
     position: relative;
+    .qor-datetimepicker__input:disabled,
+    .qor-datepicker__input:disabled {
+        & + div {
+            display: none;
+        }
+    }
     .qor-action__timepicker,
     .qor-action__datepicker {
         bottom: 0;
@@ -93,7 +99,7 @@
     .qor-action__datepicker {
         right: 40px;
     }
-    &[data-picker-type="date"] {
+    &[data-picker-type='date'] {
         .qor-action__datepicker {
             right: 0;
         }

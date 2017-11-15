@@ -10,7 +10,7 @@ import (
 var primaryKeyRegexp = regexp.MustCompile(`primary_key\[.+_.+\]`)
 
 func (admin Admin) registerCompositePrimaryKeyCallback() {
-	if db := admin.Config.DB; db != nil {
+	if db := admin.DB; db != nil {
 		// register middleware
 		router := admin.GetRouter()
 		router.Use(&Middleware{
@@ -28,11 +28,20 @@ func (admin Admin) registerCompositePrimaryKeyCallback() {
 			},
 		})
 
-		db.Callback().Query().Before("gorm:query").Register("qor_admin:composite_primary_key", compositePrimaryKeyQueryCallback)
-		db.Callback().RowQuery().Before("gorm:row_query").Register("qor_admin:composite_primary_key", compositePrimaryKeyQueryCallback)
+		callbackProc := db.Callback().Query().Before("gorm:query")
+		callbackName := "qor_admin:composite_primary_key"
+		if callbackProc.Get(callbackName) == nil {
+			callbackProc.Register(callbackName, compositePrimaryKeyQueryCallback)
+		}
+
+		callbackProc = db.Callback().RowQuery().Before("gorm:row_query")
+		if callbackProc.Get(callbackName) == nil {
+			callbackProc.Register(callbackName, compositePrimaryKeyQueryCallback)
+		}
 	}
 }
 
+// DisableCompositePrimaryKeyMode disable composite primary key mode
 var DisableCompositePrimaryKeyMode = "composite_primary_key:query:disable"
 
 func compositePrimaryKeyQueryCallback(scope *gorm.Scope) {

@@ -1,4 +1,4 @@
-(function (factory) {
+(function(factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as anonymous module.
         define(['jquery'], factory);
@@ -9,8 +9,7 @@
         // Browser globals.
         factory(jQuery);
     }
-})(function ($) {
-
+})(function($) {
     'use strict';
 
     var NAMESPACE = 'qor.timepicker';
@@ -38,7 +37,11 @@
     }
 
     QorTimepicker.prototype = {
-        init: function () {
+        init: function() {
+            if (this.$targetInput.is(':disabled')) {
+                this.$element.remove();
+                return;
+            }
             this.bind();
             this.oldValue = this.$targetInput.val();
 
@@ -46,14 +49,13 @@
             var month = dateNow.getMonth() + 1;
             var date = dateNow.getDate();
 
-            month = (month < 8) ? ('0' + month) : month;
-            date = (date < 10) ? ('0' + date) : date;
+            month = month < 8 ? '0' + month : month;
+            date = date < 10 ? '0' + date : date;
 
             this.dateValueNow = dateNow.getFullYear() + '-' + month + '-' + date;
         },
 
-        bind: function () {
-
+        bind: function() {
             var pickerOptions = {
                 timeFormat: 'H:i',
                 showOn: null,
@@ -73,7 +75,7 @@
             this.$element.on(EVENT_CLICK, $.proxy(this.show, this));
         },
 
-        unbind: function () {
+        unbind: function() {
             this.$element.off(EVENT_CLICK, this.show);
 
             if (this.isDateTimePicker) {
@@ -85,11 +87,9 @@
             }
         },
 
-        focus: function () {
+        focus: function() {},
 
-        },
-
-        blur: function () {
+        blur: function() {
             var inputValue = this.$targetInput.val();
             var inputArr = inputValue.split(' ');
             var inputArrLen = inputArr.length;
@@ -118,7 +118,6 @@
                     newDateValue = this.dateValueNow;
                     newTimeValue = inputArr[0];
                 }
-
             } else {
                 for (var i = 0; i < inputArrLen; i++) {
                     // check for date && time
@@ -151,7 +150,6 @@
                         newTimeValue = tempValue.join(splitSym);
                     }
                 }
-
             }
 
             if (this.checkDate(newDateValue) && this.checkTime(newTimeValue)) {
@@ -160,10 +158,9 @@
             } else {
                 this.$targetInput.val(this.oldValue);
             }
-
         },
 
-        keydown: function (e) {
+        keydown: function(e) {
             var keycode = e.keyCode;
             var keys = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 8, 37, 38, 39, 40, 27, 32, 20, 189, 16, 186, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105];
             if (keys.indexOf(keycode) == -1) {
@@ -171,23 +168,26 @@
             }
         },
 
-        checkDate: function (value) {
+        checkDate: function(value) {
             var regCheckDate = /^(?:(?!0000)[0-9]{4}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1[0-9]|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[0-9]{1,2}(?:0[48]|[2468][048]|[13579][26])|(?:0[48]|[2468][048]|[13579][26])00)-02-29)$/;
             return regCheckDate.test(value);
         },
 
-        checkTime: function (value) {
+        checkTime: function(value) {
             var regCheckTime = /^([01]\d|2[0-3]):?([0-5]\d)$/;
             return regCheckTime.test(value);
         },
 
-        changeTime: function () {
+        changeTime: function() {
             var $targetInput = this.$targetInput;
 
             var oldValue = this.oldValue;
             var timeReg = /\d{1,2}:\d{1,2}/;
             var hasTime = timeReg.test(oldValue);
-            var selectedTime = $targetInput.data().timepickerList.find(CLASS_TIME_SELECTED).html();
+            var selectedTime = $targetInput
+                .data()
+                .timepickerList.find(CLASS_TIME_SELECTED)
+                .html();
             var newValue;
 
             if (!oldValue) {
@@ -199,10 +199,9 @@
             }
 
             $targetInput.val(newValue);
-
         },
 
-        show: function () {
+        show: function() {
             if (!this.isDateTimePicker) {
                 return;
             }
@@ -211,7 +210,7 @@
             this.oldValue = this.$targetInput.val();
         },
 
-        destroy: function () {
+        destroy: function() {
             this.unbind();
             this.$targetInput.qorTimepicker('remove');
             this.$element.removeData(NAMESPACE);
@@ -220,8 +219,8 @@
 
     QorTimepicker.DEFAULTS = {};
 
-    QorTimepicker.plugin = function (option) {
-        return this.each(function () {
+    QorTimepicker.plugin = function(option) {
+        return this.each(function() {
             var $this = $(this);
             var data = $this.data(NAMESPACE);
             var options;
@@ -240,25 +239,24 @@
                 $this.data(NAMESPACE, (data = new QorTimepicker(this, options)));
             }
 
-            if (typeof option === 'string' && $.isFunction(fn = data[option])) {
+            if (typeof option === 'string' && $.isFunction((fn = data[option]))) {
                 fn.apply(data);
             }
         });
     };
 
-    $(function () {
+    $(function() {
         var selector = '[data-toggle="qor.timepicker"]';
 
-        $(document).
-        on(EVENT_DISABLE, function (e) {
-            QorTimepicker.plugin.call($(selector, e.target), 'destroy');
-        }).
-        on(EVENT_ENABLE, function (e) {
-            QorTimepicker.plugin.call($(selector, e.target));
-        }).
-        triggerHandler(EVENT_ENABLE);
+        $(document)
+            .on(EVENT_DISABLE, function(e) {
+                QorTimepicker.plugin.call($(selector, e.target), 'destroy');
+            })
+            .on(EVENT_ENABLE, function(e) {
+                QorTimepicker.plugin.call($(selector, e.target));
+            })
+            .triggerHandler(EVENT_ENABLE);
     });
 
     return QorTimepicker;
-
 });

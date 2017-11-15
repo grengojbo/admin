@@ -1,16 +1,21 @@
 package admin
 
 import (
+	"github.com/qor/qor"
 	"github.com/qor/qor/resource"
+	"github.com/qor/qor/utils"
 )
 
+// RichEditorConfig rich editor meta config
 type RichEditorConfig struct {
-	AssetManager *Resource
-	Plugins      []RedactorPlugin
-	Settings     map[string]interface{}
+	AssetManager         *Resource
+	DisableHTMLSanitizer bool
+	Plugins              []RedactorPlugin
+	Settings             map[string]interface{}
 	metaConfig
 }
 
+// RedactorPlugin register redactor plugins into rich editor
 type RedactorPlugin struct {
 	Name   string
 	Source string
@@ -25,6 +30,14 @@ func (richEditorConfig *RichEditorConfig) ConfigureQorMeta(metaor resource.Metao
 		if meta.Resource != nil {
 			richEditorConfig.AssetManager = meta.Resource
 			meta.Resource = nil
+		}
+
+		if !richEditorConfig.DisableHTMLSanitizer {
+			setter := meta.GetSetter()
+			meta.SetSetter(func(resource interface{}, metaValue *resource.MetaValue, context *qor.Context) {
+				metaValue.Value = utils.HTMLSanitizer.Sanitize(utils.ToString(metaValue.Value))
+				setter(resource, metaValue, context)
+			})
 		}
 
 		if richEditorConfig.Settings == nil {

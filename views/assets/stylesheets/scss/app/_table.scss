@@ -2,6 +2,17 @@ table {
     border-spacing: 0;
 }
 
+.mdl-data-table--selectable {
+    td:first-of-type,
+    th:first-of-type {
+        text-align: left;
+    }
+}
+
+// .qor-table--bulking tr.qor-table__inner-list label.mdl-checkbox {
+//     display: none;
+// }
+
 .qor-table {
     width: calc(100% - 48px);
     border: 0;
@@ -34,8 +45,8 @@ table {
             }
         }
     }
-    a:not([class*="mdl-button"]) {
-        color: unquote("rgba(#{$color-black}, 0.87)");
+    a:not([class*='mdl-button']) {
+        color: unquote('rgba(#{$color-black}, 0.87)');
         font-weight: 400;
     }
     tbody {
@@ -55,22 +66,22 @@ table {
         max-height: 24px !important;
         max-width: 54px !important;
     }
-    &.is-sortable>thead>tr>th {
+    &.is-sortable > thead > tr > th {
         &[data-order-by] {
             text-decoration: underline;
             cursor: pointer;
         }
         &.is-sorted {
-            color: unquote("rgb(#{$color-black})");
+            color: unquote('rgb(#{$color-black})');
             font-weight: 500;
             &[data-order-by]::after {
                 margin-left: 8px;
                 font-size: 14px;
-                content: "\e164";
+                content: '\e164';
                 vertical-align: middle;
                 @extend .material-icons;
             }
-            &[data-order-by*="desc"]::after {
+            &[data-order-by*='desc']::after {
                 transform: scaleY(-1);
             }
         }
@@ -102,12 +113,12 @@ table {
     }
     .mdl-button {
         margin: -4px 0;
-        +.mdl-button {
+        + .mdl-button {
             margin-left: 8px;
         }
     }
     .mdl-menu__item a {
-        color: unquote("rgba(#{$color-black}, 0.87)");
+        color: unquote('rgba(#{$color-black}, 0.87)');
         text-decoration: none;
         height: 48px;
         line-height: 48px;
@@ -150,48 +161,50 @@ table {
         }
         &:hover {
             .mdl-button {
-                background-color: rgba(158, 158, 158, .5);
+                background-color: rgba(158, 158, 158, 0.5);
             }
         }
     }
     .mdl-card__supporting-text {
         width: auto;
         padding: 0;
-        >p {
+        > p {
             margin-bottom: 8px;
             padding: 0 16px;
             line-height: 1.2;
             &:last-child {
                 margin-bottom: 16px;
             }
-            &[data-heading*="Name"],
-            &[data-heading*="name"] {
+            &[data-heading*='BannerEditorUrl'] {
+                display: none;
+            }
+            &[data-heading*='Name'],
+            &[data-heading*='name'] {
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
+                margin-top: 8px;
             }
-            &[data-heading*="Image"],
-            &[data-heading*="image"],
-            &[data-heading*="File"],
-            &[data-heading*="file"],
+            &[data-heading*='Image'],
+            &[data-heading*='image'],
+            &[data-heading*='File'],
+            &[data-heading*='file'],
             &.qor-table--video {
                 padding: 0;
                 height: 200px;
+                overflow: hidden;
                 line-height: 200px;
+                margin-bottom: 0;
                 text-align: center;
-                background-color: unquote("rgba(#{$color-black}, 0.05)");
-                img{
-                  max-height: 200px;
-                }
             }
             .qor-table--medialibrary-file {
                 display: flex;
                 justify-content: center;
                 flex-direction: column;
-                background-color: unquote("rgba(#{$color-black}, 0.1)");
                 height: 200px;
                 a {
                     padding: 0 32px;
+                    line-height: initial;
                     word-wrap: break-word;
                     word-break: break-word;
                     text-align: center;
@@ -199,8 +212,8 @@ table {
             }
         }
     }
-    >tbody {
-        >tr {
+    > tbody {
+        > tr {
             vertical-align: top;
             display: inline-flex;
             td {
@@ -212,5 +225,13 @@ table {
     img {
         max-width: 100%;
         margin: 0 auto;
+    }
+}
+
+.qor-table-fixed-header {
+    thead {
+        position: fixed;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        padding-bottom: 0;
     }
 }

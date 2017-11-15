@@ -1,8 +1,10 @@
 package admin
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"path"
 	"reflect"
 	"strings"
 
@@ -14,104 +16,53 @@ import (
 	"github.com/qor/roles"
 )
 
+// Config resource config struct
+type Config struct {
+	Name       string
+	Menu       []string
+	Permission *roles.Permission
+	Themes     []ThemeInterface
+	Priority   int
+	Singleton  bool
+	Invisible  bool
+	PageCount  int
+}
+
 // Resource is the most important thing for qor admin, every model is defined as a resource, qor admin will genetate management interface based on its definition
 type Resource struct {
 	*resource.Resource
 	Config         *Config
-	Metas          []*Meta
-	Actions        []*Action
-	SearchHandler  func(keyword string, context *qor.Context) *gorm.DB
 	ParentResource *Resource
+	SearchHandler  func(keyword string, context *qor.Context) *gorm.DB
 
-	admin          *Admin
-	params         string
-	scopes         []*Scope
-	filters        []*Filter
-	searchAttrs    *[]string
-	sortableAttrs  *[]string
-	indexSections  []*Section
-	newSections    []*Section
-	editSections   []*Section
-	showSections   []*Section
-	isSetShowAttrs bool
-	cachedMetas    *map[string][]*Meta
-}
-
-// Meta register meta for admin resource
-func (res *Resource) Meta(meta *Meta) *Meta {
-	if oldMeta := res.GetMeta(meta.Name); oldMeta != nil {
-		if meta.Type != "" {
-			oldMeta.Type = meta.Type
-			oldMeta.Config = nil
-		}
-
-		if meta.Label != "" {
-			oldMeta.Label = meta.Label
-		}
-
-		if meta.FieldName != "" {
-			oldMeta.FieldName = meta.FieldName
-		}
-
-		if meta.Setter != nil {
-			oldMeta.Setter = meta.Setter
-		} else {
-			oldMeta.Setter = oldMeta.Meta.Setter
-		}
-
-		if meta.Valuer != nil {
-			oldMeta.Valuer = meta.Valuer
-		} else {
-			oldMeta.Valuer = oldMeta.Meta.Valuer
-		}
-
-		if meta.FormattedValuer != nil {
-			oldMeta.FormattedValuer = meta.FormattedValuer
-		} else {
-			oldMeta.FormattedValuer = oldMeta.Meta.FormattedValuer
-		}
-
-		if meta.Resource != nil {
-			oldMeta.Resource = meta.Resource
-		}
-
-		if meta.Permission != nil {
-			oldMeta.Permission = meta.Permission
-		}
-
-		if meta.Config != nil {
-			oldMeta.Config = meta.Config
-		}
-
-		if meta.Collection != nil {
-			oldMeta.Collection = meta.Collection
-		}
-		meta = oldMeta
-	} else {
-		res.Metas = append(res.Metas, meta)
-		meta.baseResource = res
+	params   string
+	admin    *Admin
+	metas    []*Meta
+	actions  []*Action
+	scopes   []*Scope
+	filters  []*Filter
+	mounted  bool
+	sections struct {
+		IndexSections                  []*Section
+		OverriddingIndexAttrs          bool
+		OverriddingIndexAttrsCallbacks []func()
+		NewSections                    []*Section
+		OverriddingNewAttrs            bool
+		OverriddingNewAttrsCallbacks   []func()
+		EditSections                   []*Section
+		OverriddingEditAttrs           bool
+		OverriddingEditAttrsCallbacks  []func()
+		ShowSections                   []*Section
+		OverriddingShowAttrs           bool
+		ConfiguredShowAttrs            bool
+		OverriddingShowAttrsCallbacks  []func()
+		SortableAttrs                  *[]string
 	}
-
-	meta.updateMeta()
-	return meta
 }
 
 // GetAdmin get admin from resource
 func (res Resource) GetAdmin() *Admin {
 	return res.admin
-}
-
-// GetPrimaryValue get priamry value from request
-func (res Resource) GetPrimaryValue(request *http.Request) string {
-	if request != nil {
-		return request.URL.Query().Get(res.ParamIDName())
-	}
-	return ""
-}
-
-// ParamIDName return param name for primary key like :product_id
-func (res Resource) ParamIDName() string {
-	return fmt.Sprintf(":%v_id", inflection.Singular(res.ToParam()))
 }
 
 // ToParam used as urls to register routes for resource
@@ -124,11 +75,35 @@ func (res *Resource) ToParam() string {
 		} else {
 			if res.Config.Singleton == true {
 				res.params = utils.ToParamString(res.Name)
+			} else {
+				res.params = utils.ToParamString(inflection.Plural(res.Name))
 			}
-			res.params = utils.ToParamString(inflection.Plural(res.Name))
 		}
 	}
 	return res.params
+}
+
+// ParamIDName return param name for primary key like :product_id
+func (res Resource) ParamIDName() string {
+	return fmt.Sprintf(":%v_id", inflection.Singular(utils.ToParamString(res.Name)))
+}
+
+// RoutePrefix return route prefix of resource
+func (res *Resource) RoutePrefix() string {
+	var params string
+	for res.ParentResource != nil {
+		params = path.Join(res.ParentResource.ToParam(), res.ParentResource.ParamIDName(), params)
+		res = res.ParentResource
+	}
+	return params
+}
+
+// GetPrimaryValue get priamry value from request
+func (res Resource) GetPrimaryValue(request *http.Request) string {
+	if request != nil {
+		return request.URL.Query().Get(res.ParamIDName())
+	}
+	return ""
 }
 
 // UseTheme use them for resource, will auto load the theme's javascripts, stylesheets for this resource
@@ -137,6 +112,12 @@ func (res *Resource) UseTheme(theme interface{}) []ThemeInterface {
 	if ti, ok := theme.(ThemeInterface); ok {
 		themeInterface = ti
 	} else if str, ok := theme.(string); ok {
+		for _, theme := range res.Config.Themes {
+			if theme.GetName() == str {
+				return res.Config.Themes
+			}
+		}
+
 		themeInterface = Theme{Name: str}
 	}
 
@@ -170,6 +151,106 @@ func (res *Resource) NewResource(value interface{}, config ...*Config) *Resource
 	return subRes
 }
 
+// AddSubResource register sub-resource
+func (res *Resource) AddSubResource(fieldName string, config ...*Config) (subRes *Resource, err error) {
+	var (
+		admin = res.GetAdmin()
+		scope = &gorm.Scope{Value: res.Value}
+	)
+
+	if field, ok := scope.FieldByName(fieldName); ok && field.Relationship != nil {
+		modelType := utils.ModelType(reflect.New(field.Struct.Type).Interface())
+		subRes = admin.NewResource(reflect.New(modelType).Interface(), config...)
+		subRes.setupParentResource(field.StructField.Name, res)
+
+		subRes.Action(&Action{
+			Name:   "Delete",
+			Method: "DELETE",
+			URL: func(record interface{}, context *Context) string {
+				return context.URLFor(record, res)
+			},
+			Permission: subRes.Config.Permission,
+			Modes:      []string{"menu_item"},
+		})
+
+		admin.RegisterResourceRouters(subRes, "create", "update", "read", "delete")
+		return
+	}
+
+	err = errors.New("invalid sub resource")
+	return
+}
+
+func (res *Resource) setupParentResource(fieldName string, parent *Resource) {
+	res.ParentResource = parent
+
+	var findParent = func(context *qor.Context) (interface{}, error) {
+		clone := context.Clone()
+		clone.ResourceID = parent.GetPrimaryValue(context.Request)
+		parentValue := parent.NewStruct()
+		err := parent.FindOneHandler(parentValue, nil, clone)
+		return parentValue, err
+	}
+
+	findOneHandler := res.FindOneHandler
+	res.FindOneHandler = func(value interface{}, metaValues *resource.MetaValues, context *qor.Context) (err error) {
+		if metaValues != nil {
+			return findOneHandler(value, metaValues, context)
+		}
+
+		if primaryKey := res.GetPrimaryValue(context.Request); primaryKey != "" {
+			parentValue := parent.NewStruct()
+			if parentValue, err = findParent(context); err == nil {
+				primaryQuerySQL, primaryParams := res.ToPrimaryQueryParams(primaryKey, context)
+				result := context.GetDB().Model(parentValue).Where(primaryQuerySQL, primaryParams...).Related(value)
+				if result.Error != nil {
+					err = result.Error
+				}
+
+				scope := gorm.Scope{Value: value}
+				if scope.PrimaryKeyZero() && result.RowsAffected == 0 {
+					err = gorm.ErrRecordNotFound
+				}
+			}
+		}
+
+		return
+	}
+
+	res.FindManyHandler = func(value interface{}, context *qor.Context) (err error) {
+		parentValue := parent.NewStruct()
+		if parentValue, err = findParent(context); err == nil {
+			if _, ok := context.GetDB().Get("qor:getting_total_count"); ok {
+				*(value.(*int)) = context.GetDB().Model(parentValue).Association(fieldName).Count()
+				return nil
+			}
+			return context.GetDB().Model(parentValue).Association(fieldName).Find(value).Error
+		}
+		return err
+	}
+
+	res.SaveHandler = func(value interface{}, context *qor.Context) (err error) {
+		parentValue := parent.NewStruct()
+		if parentValue, err = findParent(context); err == nil {
+			return context.GetDB().Model(parentValue).Association(fieldName).Append(value).Error
+		}
+		return err
+	}
+
+	res.DeleteHandler = func(value interface{}, context *qor.Context) (err error) {
+		if primaryKey := res.GetPrimaryValue(context.Request); primaryKey != "" {
+			primaryQuerySQL, primaryParams := res.ToPrimaryQueryParams(primaryKey, context)
+			if err = context.GetDB().Where(primaryQuerySQL, primaryParams...).First(value).Error; err == nil {
+				parentValue := parent.NewStruct()
+				if parentValue, err = findParent(context); err == nil {
+					return context.GetDB().Model(parentValue).Association(fieldName).Delete(value).Error
+				}
+			}
+		}
+		return
+	}
+}
+
 // Decode decode context into a value
 func (res *Resource) Decode(context *qor.Context, value interface{}) error {
 	return resource.Decode(context, value, res)
@@ -181,7 +262,7 @@ func (res *Resource) allAttrs() []string {
 
 Fields:
 	for _, field := range scope.GetModelStruct().StructFields {
-		for _, meta := range res.Metas {
+		for _, meta := range res.metas {
 			if field.Name == meta.FieldName {
 				attrs = append(attrs, meta.Name)
 				continue Fields
@@ -214,7 +295,7 @@ Fields:
 	}
 
 MetaIncluded:
-	for _, meta := range res.Metas {
+	for _, meta := range res.metas {
 		for _, attr := range attrs {
 			if attr == meta.FieldName || attr == meta.Name {
 				continue MetaIncluded
@@ -251,9 +332,34 @@ func (res *Resource) getAttrs(attrs []string) []string {
 //     // show all attributes except `State` in the index page
 //     order.IndexAttrs("-State")
 func (res *Resource) IndexAttrs(values ...interface{}) []*Section {
-	res.setSections(&res.indexSections, values...)
+	overriddingIndexAttrs := res.sections.OverriddingIndexAttrs
+	res.sections.OverriddingIndexAttrs = true
+
+	res.setSections(&res.sections.IndexSections, values...)
 	res.SearchAttrs()
-	return res.indexSections
+
+	// don't call callbacks when overridding
+	if !overriddingIndexAttrs {
+		for _, callback := range res.sections.OverriddingIndexAttrsCallbacks {
+			callback()
+		}
+
+		res.sections.OverriddingIndexAttrs = false
+	}
+
+	return res.sections.IndexSections
+}
+
+// OverrideIndexAttrs register function that will be run everytime index attrs changed
+func (res *Resource) OverrideIndexAttrs(fc func()) {
+	overriddingIndexAttrs := res.sections.OverriddingIndexAttrs
+	res.sections.OverriddingIndexAttrs = true
+	res.sections.OverriddingIndexAttrsCallbacks = append(res.sections.OverriddingIndexAttrsCallbacks, fc)
+	fc()
+
+	if !overriddingIndexAttrs {
+		res.sections.OverriddingIndexAttrs = false
+	}
 }
 
 // NewAttrs set attributes will be shown in the new page
@@ -278,8 +384,33 @@ func (res *Resource) IndexAttrs(values ...interface{}) []*Section {
 //       "ColorVariations",
 //     }
 func (res *Resource) NewAttrs(values ...interface{}) []*Section {
-	res.setSections(&res.newSections, values...)
-	return res.newSections
+	overriddingNewAttrs := res.sections.OverriddingNewAttrs
+	res.sections.OverriddingNewAttrs = true
+
+	res.setSections(&res.sections.NewSections, values...)
+
+	// don't call callbacks when overridding
+	if !overriddingNewAttrs {
+		for _, callback := range res.sections.OverriddingNewAttrsCallbacks {
+			callback()
+		}
+
+		res.sections.OverriddingNewAttrs = false
+	}
+
+	return res.sections.NewSections
+}
+
+// OverrideNewAttrs register function that will be run everytime new attrs changed
+func (res *Resource) OverrideNewAttrs(fc func()) {
+	overriddingNewAttrs := res.sections.OverriddingNewAttrs
+	res.sections.OverriddingNewAttrs = true
+	res.sections.OverriddingNewAttrsCallbacks = append(res.sections.OverriddingNewAttrsCallbacks, fc)
+	fc()
+
+	if !overriddingNewAttrs {
+		res.sections.OverriddingNewAttrs = false
+	}
 }
 
 // EditAttrs set attributes will be shown in the edit page
@@ -304,8 +435,33 @@ func (res *Resource) NewAttrs(values ...interface{}) []*Section {
 //       "ColorVariations",
 //     }
 func (res *Resource) EditAttrs(values ...interface{}) []*Section {
-	res.setSections(&res.editSections, values...)
-	return res.editSections
+	overriddingEditAttrs := res.sections.OverriddingEditAttrs
+	res.sections.OverriddingEditAttrs = true
+
+	res.setSections(&res.sections.EditSections, values...)
+
+	// don't call callbacks when overridding
+	if !overriddingEditAttrs {
+		for _, callback := range res.sections.OverriddingEditAttrsCallbacks {
+			callback()
+		}
+
+		res.sections.OverriddingEditAttrs = false
+	}
+
+	return res.sections.EditSections
+}
+
+// OverrideEditAttrs register function that will be run everytime edit attrs changed
+func (res *Resource) OverrideEditAttrs(fc func()) {
+	overriddingEditAttrs := res.sections.OverriddingEditAttrs
+	res.sections.OverriddingEditAttrs = true
+	res.sections.OverriddingEditAttrsCallbacks = append(res.sections.OverriddingEditAttrsCallbacks, fc)
+	fc()
+
+	if !overriddingEditAttrs {
+		res.sections.OverriddingEditAttrs = false
+	}
 }
 
 // ShowAttrs set attributes will be shown in the show page
@@ -330,46 +486,75 @@ func (res *Resource) EditAttrs(values ...interface{}) []*Section {
 //       "ColorVariations",
 //     }
 func (res *Resource) ShowAttrs(values ...interface{}) []*Section {
+	overriddingShowAttrs := res.sections.OverriddingShowAttrs
+	settingShowAttrs := true
+	res.sections.OverriddingShowAttrs = true
+
 	if len(values) > 0 {
 		if values[len(values)-1] == false {
+			settingShowAttrs = false
 			values = values[:len(values)-1]
-		} else {
-			res.isSetShowAttrs = true
 		}
 	}
-	res.setSections(&res.showSections, values...)
-	return res.showSections
+
+	res.setSections(&res.sections.ShowSections, values...)
+
+	// don't call callbacks when overridding
+	if !overriddingShowAttrs {
+		if settingShowAttrs && len(values) > 0 {
+			res.sections.ConfiguredShowAttrs = true
+		}
+
+		for _, callback := range res.sections.OverriddingShowAttrsCallbacks {
+			callback()
+		}
+
+		res.sections.OverriddingShowAttrs = false
+	}
+
+	return res.sections.ShowSections
 }
 
-// SortableAttrs set sortable attributes, sortable attributes could be click to order in qor table
+// OverrideShowAttrs register function that will be run everytime show attrs changed
+func (res *Resource) OverrideShowAttrs(fc func()) {
+	overriddingShowAttrs := res.sections.OverriddingShowAttrs
+	res.sections.OverriddingShowAttrs = true
+	res.sections.OverriddingShowAttrsCallbacks = append(res.sections.OverriddingShowAttrsCallbacks, fc)
+	fc()
+
+	if !overriddingShowAttrs {
+		res.sections.OverriddingShowAttrs = false
+	}
+}
+
+// SortableAttrs set sortable attributes, sortable attributes are clickable to sort data in index page
 func (res *Resource) SortableAttrs(columns ...string) []string {
-	if len(columns) != 0 || res.sortableAttrs == nil {
+	if len(columns) != 0 || res.sections.SortableAttrs == nil {
 		if len(columns) == 0 {
-			columns = res.ConvertSectionToStrings(res.indexSections)
+			columns = res.ConvertSectionToStrings(res.sections.IndexSections)
 		}
-		res.sortableAttrs = &[]string{}
-		scope := res.GetAdmin().Config.DB.NewScope(res.Value)
+		res.sections.SortableAttrs = &[]string{}
+		scope := res.GetAdmin().DB.NewScope(res.Value)
 		for _, column := range columns {
 			if field, ok := scope.FieldByName(column); ok && field.DBName != "" {
-				attrs := append(*res.sortableAttrs, column)
-				res.sortableAttrs = &attrs
+				attrs := append(*res.sections.SortableAttrs, column)
+				res.sections.SortableAttrs = &attrs
 			}
 		}
 	}
-	return *res.sortableAttrs
+	return *res.sections.SortableAttrs
 }
 
-// SearchAttrs set search attributes, when search resources, will use those columns to search
-//     // Search products with its name, code, category's name, brand's name
+// SearchAttrs set searchable attributes, e.g:
 //	   product.SearchAttrs("Name", "Code", "Category.Name", "Brand.Name")
+//     // Search products with its name, code, category's name, brand's name
 func (res *Resource) SearchAttrs(columns ...string) []string {
-	if len(columns) != 0 || res.searchAttrs == nil {
+	if len(columns) != 0 || res.SearchHandler == nil {
 		if len(columns) == 0 {
-			columns = res.ConvertSectionToStrings(res.indexSections)
+			columns = res.ConvertSectionToStrings(res.sections.IndexSections)
 		}
 
 		if len(columns) > 0 {
-			res.searchAttrs = &columns
 			res.SearchHandler = func(keyword string, context *qor.Context) *gorm.DB {
 				var filterFields []filterField
 				for _, column := range columns {
@@ -383,22 +568,57 @@ func (res *Resource) SearchAttrs(columns ...string) []string {
 	return columns
 }
 
-func (res *Resource) getCachedMetas(cacheKey string, fc func() []resource.Metaor) []*Meta {
-	if res.cachedMetas == nil {
-		res.cachedMetas = &map[string][]*Meta{}
+// Meta register meta for admin resource
+func (res *Resource) Meta(meta *Meta) *Meta {
+	if oldMeta := res.GetMeta(meta.Name); oldMeta != nil {
+		if meta.Type != "" {
+			oldMeta.Type = meta.Type
+			oldMeta.Config = nil
+		}
+
+		if meta.Label != "" {
+			oldMeta.Label = meta.Label
+		}
+
+		if meta.FieldName != "" {
+			oldMeta.FieldName = meta.FieldName
+		}
+
+		if meta.Setter != nil {
+			oldMeta.Setter = meta.Setter
+		}
+
+		if meta.Valuer != nil {
+			oldMeta.Valuer = meta.Valuer
+		}
+
+		if meta.FormattedValuer != nil {
+			oldMeta.FormattedValuer = meta.FormattedValuer
+		}
+
+		if meta.Resource != nil {
+			oldMeta.Resource = meta.Resource
+		}
+
+		if meta.Permission != nil {
+			oldMeta.Permission = meta.Permission
+		}
+
+		if meta.Config != nil {
+			oldMeta.Config = meta.Config
+		}
+
+		if meta.Collection != nil {
+			oldMeta.Collection = meta.Collection
+		}
+		meta = oldMeta
+	} else {
+		res.metas = append(res.metas, meta)
+		meta.baseResource = res
 	}
 
-	if values, ok := (*res.cachedMetas)[cacheKey]; ok {
-		return values
-	}
-
-	values := fc()
-	var metas []*Meta
-	for _, value := range values {
-		metas = append(metas, value.(*Meta))
-	}
-	(*res.cachedMetas)[cacheKey] = metas
-	return metas
+	meta.configure()
+	return meta
 }
 
 // GetMetas get metas with give attrs
@@ -426,7 +646,7 @@ Attrs:
 		}
 
 		var meta *Meta
-		for _, m := range res.Metas {
+		for _, m := range res.metas {
 			if m.GetName() == attr {
 				meta = m
 				break
@@ -441,7 +661,7 @@ Attrs:
 					break
 				}
 			}
-			meta.updateMeta()
+			meta.configure()
 		}
 
 		metas = append(metas, meta)
@@ -452,31 +672,31 @@ Attrs:
 
 // GetMeta get meta with name
 func (res *Resource) GetMeta(name string) *Meta {
-	for _, meta := range res.Metas {
-		if meta.Name == name || meta.GetFieldName() == name {
+	var fallbackMeta *Meta
+
+	for _, meta := range res.metas {
+		if meta.Name == name {
+			return meta
+		}
+
+		if meta.GetFieldName() == name {
+			fallbackMeta = meta
+		}
+	}
+
+	if fallbackMeta == nil {
+		if field, ok := res.GetAdmin().DB.NewScope(res.Value).FieldByName(name); ok {
+			meta := &Meta{Name: name, baseResource: res}
+			if field.IsPrimaryKey {
+				meta.Type = "hidden_primary_key"
+			}
+			meta.configure()
+			res.metas = append(res.metas, meta)
 			return meta
 		}
 	}
-	return nil
-}
 
-// GetMetaOrNew get meta or initalize a new one
-func (res *Resource) GetMetaOrNew(name string) *Meta {
-	if meta := res.GetMeta(name); meta != nil {
-		return meta
-	}
-
-	if field, ok := res.GetAdmin().Config.DB.NewScope(res.Value).FieldByName(name); ok {
-		meta := &Meta{Name: name, baseResource: res}
-		if field.IsPrimaryKey {
-			meta.Type = "hidden_primary_key"
-		}
-		meta.updateMeta()
-		res.Metas = append(res.Metas, meta)
-		return meta
-	}
-
-	return nil
+	return fallbackMeta
 }
 
 func (res *Resource) allowedSections(sections []*Section, context *Context, roles ...roles.PermissionMode) []*Section {
@@ -488,7 +708,7 @@ func (res *Resource) allowedSections(sections []*Section, context *Context, role
 			var editableColumns []string
 			for _, column := range row {
 				for _, role := range roles {
-					meta := res.GetMetaOrNew(column)
+					meta := res.GetMeta(column)
 					if meta != nil && meta.HasPermission(role, context.Context) {
 						editableColumns = append(editableColumns, column)
 						break
@@ -506,11 +726,32 @@ func (res *Resource) allowedSections(sections []*Section, context *Context, role
 }
 
 func (res *Resource) configure() {
-	modelType := utils.ModelType(res.Value)
-	for i := 0; i < modelType.NumField(); i++ {
-		if fieldStruct := modelType.Field(i); fieldStruct.Anonymous {
-			if injector, ok := reflect.New(fieldStruct.Type).Interface().(resource.ConfigureResourceInterface); ok {
-				injector.ConfigureQorResource(res)
+	var configureModel func(value interface{})
+
+	configureModel = func(value interface{}) {
+		modelType := utils.ModelType(value)
+		for i := 0; i < modelType.NumField(); i++ {
+			if fieldStruct := modelType.Field(i); fieldStruct.Anonymous {
+				if injector, ok := reflect.New(fieldStruct.Type).Interface().(resource.ConfigureResourceInterface); ok {
+					injector.ConfigureQorResource(res)
+				} else {
+					configureModel(reflect.New(fieldStruct.Type).Interface())
+				}
+			}
+		}
+	}
+
+	configureModel(res.Value)
+
+	scope := gorm.Scope{Value: res.Value}
+	for _, field := range scope.Fields() {
+		if field.StructField.Struct.Type.Kind() == reflect.Struct {
+			fieldData := reflect.New(field.StructField.Struct.Type).Interface()
+			_, configureMetaBeforeInitialize := fieldData.(resource.ConfigureMetaBeforeInitializeInterface)
+			_, configureMeta := fieldData.(resource.ConfigureMetaInterface)
+
+			if configureMetaBeforeInitialize || configureMeta {
+				res.Meta(&Meta{Name: field.Name})
 			}
 		}
 	}
