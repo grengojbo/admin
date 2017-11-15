@@ -247,6 +247,7 @@
             }
             var searchValue = $.trim($bottomsheets.find(CLASS_BOTTOMSHEETS_INPUT).val()),
                 url = baseUrl + param + searchValue;
+
             this.reload(url);
         },
 
