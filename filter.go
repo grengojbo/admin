@@ -7,6 +7,30 @@ import (
 	"github.com/qor/qor/utils"
 )
 
+// Filter filter definiation
+type Filter struct {
+	Name       string
+	Label      string
+	Type       string
+	Operations []string // eq, cont, gt, gteq, lt, lteq
+	Resource   *Resource
+	Visible    func(context *Context) bool
+	Handler    func(*gorm.DB, *FilterArgument) *gorm.DB
+	Config     FilterConfigInterface
+}
+
+// FilterConfigInterface filter config interface
+type FilterConfigInterface interface {
+	ConfigureQORAdminFilter(*Filter)
+}
+
+// FilterArgument filter argument that used in handler
+type FilterArgument struct {
+	Value    *resource.MetaValues
+	Resource *Resource
+	Context  *qor.Context
+}
+
 // Filter register filter for qor resource
 func (res *Resource) Filter(filter *Filter) {
 	filter.Resource = res
@@ -52,29 +76,17 @@ func (res *Resource) Filter(filter *Filter) {
 	}
 }
 
+// GetFilters get registered filters
 func (res *Resource) GetFilters() []*Filter {
 	return res.filters
 }
 
-// Filter filter definiation
-type Filter struct {
-	Name       string
-	Label      string
-	Type       string
-	Operations []string // eq, cont, gt, gteq, lt, lteq
-	Resource   *Resource
-	Handler    func(*gorm.DB, *FilterArgument) *gorm.DB
-	Config     FilterConfigInterface
-}
-
-// FilterConfigInterface filter config interface
-type FilterConfigInterface interface {
-	ConfigureQORAdminFilter(*Filter)
-}
-
-// FilterArgument filter argument that used in handler
-type FilterArgument struct {
-	Value    *resource.MetaValues
-	Resource *Resource
-	Context  *qor.Context
+// GetFilter get defined action
+func (res *Resource) GetFilter(name string) *Filter {
+	for _, action := range res.filters {
+		if action.Name == name {
+			return action
+		}
+	}
+	return nil
 }

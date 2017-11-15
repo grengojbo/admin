@@ -7,8 +7,6 @@ import (
 	"github.com/qor/roles"
 )
 
-var blankPermissionMode roles.PermissionMode
-
 // RouteConfig config for admin routes
 type RouteConfig struct {
 	Resource       *Resource
@@ -26,7 +24,7 @@ type routeHandler struct {
 }
 
 func newRouteHandler(path string, handle requestHandler, configs ...*RouteConfig) *routeHandler {
-	handler := routeHandler{
+	handler := &routeHandler{
 		Path:   "/" + strings.TrimPrefix(path, "/"),
 		Handle: handle,
 	}
@@ -39,12 +37,17 @@ func newRouteHandler(path string, handle requestHandler, configs ...*RouteConfig
 		handler.Config = &RouteConfig{}
 	}
 
-	if handler.Config.Permissioner == nil && handler.Config.Resource != nil {
-		handler.Config.Permissioner = handler.Config.Resource
+	if handler.Config.Resource != nil {
+		if handler.Config.Permissioner == nil {
+			handler.Config.Permissioner = handler.Config.Resource
+		}
+
+		handler.Config.Resource.mounted = true
 	}
-	return &handler
+	return handler
 }
 
+// HasPermission check has permission to access router handler or not
 func (handler routeHandler) HasPermission(permissionMode roles.PermissionMode, context *qor.Context) bool {
 	if handler.Config.Permissioner == nil {
 		return true

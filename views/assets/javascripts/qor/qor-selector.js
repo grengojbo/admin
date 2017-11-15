@@ -10,7 +10,6 @@
         factory(jQuery);
     }
 })(function($) {
-
     'use strict';
 
     var $document = $(document);
@@ -61,42 +60,51 @@
 
             hover && $selector.addClass(CLASS_HOVER);
 
-            $selector.addClass(alignedClass).find(SELECTOR_MENU).html(function() {
-                var list = [];
+            $selector
+                .addClass(alignedClass)
+                .find(SELECTOR_MENU)
+                .html(function() {
+                    var list = [];
 
-                $this.children().each(function() {
-                    var $this = $(this);
-                    var selected = $this.attr('selected');
-                    var disabled = $this.attr('disabled');
-                    var value = $this.attr('value');
-                    var label = $this.text();
-                    var classNames = [];
+                    $this.children().each(function() {
+                        var $this = $(this);
+                        var selected = $this.attr('selected');
+                        var disabled = $this.attr('disabled');
+                        var value = $this.attr('value');
+                        var label = $this.text();
+                        var classNames = [];
 
-                    if (selected) {
-                        classNames.push(CLASS_SELECTED);
-                        data.value = value;
-                        data.label = label;
-                        data.paramName = paramName;
-                    }
+                        if (selected) {
+                            classNames.push(CLASS_SELECTED);
+                            data.value = value;
+                            data.label = label;
+                            data.paramName = paramName;
+                        }
 
-                    if (disabled) {
-                        classNames.push(CLASS_DISABLED);
-                    }
+                        if (disabled) {
+                            classNames.push(CLASS_DISABLED);
+                        }
 
-                    list.push(
-                        '<li' +
-                        (classNames.length ? ' class="' + classNames.join(' ') + '"' : '') +
-                        ' data-value="' + value + '"' +
-                        ' data-label="' + label + '"' +
-                        ' data-param-name="' + paramName + '"' +
-                        '>' +
-                        label +
-                        '</li>'
-                    );
+                        list.push(
+                            '<li' +
+                                (classNames.length ? ' class="' + classNames.join(' ') + '"' : '') +
+                                ' data-value="' +
+                                value +
+                                '"' +
+                                ' data-label="' +
+                                label +
+                                '"' +
+                                ' data-param-name="' +
+                                paramName +
+                                '"' +
+                                '>' +
+                                label +
+                                '</li>'
+                        );
+                    });
+
+                    return list.join('');
                 });
-
-                return list.join('');
-            });
 
             this.$selector = $selector;
             $this.hide().after($selector);
@@ -118,7 +126,6 @@
 
         unbind: function() {
             this.$selector.off(EVENT_CLICK, this.click);
-            $document.off(EVENT_CLICK, this.close);
         },
 
         click: function(e) {
@@ -144,23 +151,22 @@
             var selected = !!data.value;
             var $element = this.$element;
 
-            $selector.
-            find(SELECTOR_TOGGLE).
-            toggleClass(CLASS_ACTIVE, selected).
-            toggleClass(CLASS_CLEARABLE, selected && this.options.clearable).
-            find(SELECTOR_LABEL).
-            text(data.label || this.placeholder);
+            $selector
+                .find(SELECTOR_TOGGLE)
+                .toggleClass(CLASS_ACTIVE, selected)
+                .toggleClass(CLASS_CLEARABLE, selected && this.options.clearable)
+                .find(SELECTOR_LABEL)
+                .text(data.label || this.placeholder);
 
             if (!initialized) {
-                $selector.
-                find(SELECTOR_MENU).
-                children('[data-value="' + data.value + '"]').
-                addClass(CLASS_SELECTED).
-                siblings(SELECTOR_SELECTED).
-                removeClass(CLASS_SELECTED);
+                $selector
+                    .find(SELECTOR_MENU)
+                    .children('[data-value="' + data.value + '"]')
+                    .addClass(CLASS_SELECTED)
+                    .siblings(SELECTOR_SELECTED)
+                    .removeClass(CLASS_SELECTED);
 
                 $element.val(data.value);
-
 
                 if ($element.closest(CLASS_BOTTOMSHEETS).length && !$element.closest('[data-toggle="qor.filter"]').length) {
                     // If action is in bottom sheet, will trigger filterChanged.qor.selector event, add passed data.value parameter to event.
@@ -174,23 +180,22 @@
         clear: function() {
             var $element = this.$element;
 
-            this.$selector.
-            find(SELECTOR_TOGGLE).
-            removeClass(CLASS_ACTIVE).
-            removeClass(CLASS_CLEARABLE).
-            find(SELECTOR_LABEL).
-            text(this.placeholder).
-            end().
-            end().
-            find(SELECTOR_MENU).
-            children(SELECTOR_SELECTED).
-            removeClass(CLASS_SELECTED);
+            this.$selector
+                .find(SELECTOR_TOGGLE)
+                .removeClass(CLASS_ACTIVE)
+                .removeClass(CLASS_CLEARABLE)
+                .find(SELECTOR_LABEL)
+                .text(this.placeholder)
+                .end()
+                .end()
+                .find(SELECTOR_MENU)
+                .children(SELECTOR_SELECTED)
+                .removeClass(CLASS_SELECTED);
 
             $element.val('').trigger('change');
         },
 
         open: function() {
-
             // Close other opened dropdowns first
             $document.triggerHandler(EVENT_CLICK);
             $('.qor-filter__dropdown').hide();
@@ -220,7 +225,7 @@
         clearable: false
     };
 
-    QorSelector.TEMPLATE = (
+    QorSelector.TEMPLATE =
         '<div class="qor-selector">' +
         '<a class="qor-selector-toggle">' +
         '<span class="qor-selector-label"></span>' +
@@ -228,8 +233,7 @@
         '<i class="material-icons qor-selector-clear">clear</i>' +
         '</a>' +
         '<ul class="qor-selector-menu"></ul>' +
-        '</div>'
-    );
+        '</div>';
 
     QorSelector.plugin = function(option) {
         return this.each(function() {
@@ -247,7 +251,7 @@
                 $this.data(NAMESPACE, (data = new QorSelector(this, options)));
             }
 
-            if (typeof option === 'string' && $.isFunction(fn = data[option])) {
+            if (typeof option === 'string' && $.isFunction((fn = data[option]))) {
                 fn.apply(data);
             }
         });
@@ -256,16 +260,15 @@
     $(function() {
         var selector = '[data-toggle="qor.selector"]';
 
-        $(document).
-        on(EVENT_DISABLE, function(e) {
-            QorSelector.plugin.call($(selector, e.target), 'destroy');
-        }).
-        on(EVENT_ENABLE, function(e) {
-            QorSelector.plugin.call($(selector, e.target));
-        }).
-        triggerHandler(EVENT_ENABLE);
+        $(document)
+            .on(EVENT_DISABLE, function(e) {
+                QorSelector.plugin.call($(selector, e.target), 'destroy');
+            })
+            .on(EVENT_ENABLE, function(e) {
+                QorSelector.plugin.call($(selector, e.target));
+            })
+            .triggerHandler(EVENT_ENABLE);
     });
 
     return QorSelector;
-
 });

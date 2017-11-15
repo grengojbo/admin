@@ -7,9 +7,10 @@ type ThemeInterface interface {
 	ConfigAdminTheme(*Resource)
 }
 
-// Theme base theme config struct
+// Theme resource theme struct
 type Theme struct {
-	Name string
+	Name      string
+	ViewPaths []string
 }
 
 // GetName get name from theme
@@ -18,11 +19,11 @@ func (theme Theme) GetName() string {
 }
 
 // GetViewPaths get view paths from theme
-func (Theme) GetViewPaths() []string {
-	return []string{}
+func (theme Theme) GetViewPaths() []string {
+	return theme.ViewPaths
 }
 
 // ConfigAdminTheme config theme for admin resource
-func (Theme) ConfigAdminTheme(*Resource) {
+func (theme Theme) ConfigAdminTheme(*Resource) {
 	return
 }

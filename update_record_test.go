@@ -1,10 +1,18 @@
 package admin_test
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
 	"testing"
+
+	. "github.com/qor/admin/tests/dummy"
 )
 
 func TestUpdateRecord(t *testing.T) {
@@ -178,5 +186,102 @@ func TestUpdateManyToManyRecord(t *testing.T) {
 		}
 	} else {
 		t.Errorf(err.Error())
+	}
+}
+
+func TestUpdateSelectOne(t *testing.T) {
+	name := "update_record_select_one"
+	var company1, company2 Company
+	db.FirstOrCreate(&company1, Language{Name: "Company 1"})
+	db.FirstOrCreate(&company2, Language{Name: "Company 2"})
+	user := User{Name: name, Role: "admin", Company: &company1}
+	db.Save(&user)
+
+	form := url.Values{
+		"QorResource.Name":    {name + "_new"},
+		"QorResource.Role":    {"admin"},
+		"QorResource.Company": {fmt.Sprint(company2.ID)},
+	}
+
+	if req, err := http.PostForm(server.URL+"/admin/users/"+fmt.Sprint(user.ID), form); err == nil {
+		if req.StatusCode != 200 {
+			t.Errorf("Update request should be processed successfully")
+		}
+
+		var user User
+		if db.Preload("Company").First(&user, "name = ?", name+"_new").RecordNotFound() {
+			t.Errorf("User should be updated successfully")
+		}
+
+		if user.Company.ID != company2.ID {
+			t.Errorf("user's company should be updated")
+		}
+	} else {
+		t.Errorf(err.Error())
+	}
+}
+
+func TestUpdateAttachment(t *testing.T) {
+	name := "update_record_attachment"
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	if attachment, err := filepath.Abs("tests/qor.png"); err == nil {
+		if part, err := writer.CreateFormFile("QorResource.Avatar", filepath.Base(attachment)); err == nil {
+			if file, err := os.Open(attachment); err == nil {
+				io.Copy(part, file)
+			}
+		}
+		form := url.Values{
+			"QorResource.Name": {name},
+			"QorResource.Role": {"admin"},
+		}
+		for key, val := range form {
+			_ = writer.WriteField(key, val[0])
+		}
+		writer.Close()
+
+		var user User
+		if req, err := http.Post(server.URL+"/admin/users", writer.FormDataContentType(), body); err == nil {
+			if req.StatusCode != 200 {
+				t.Errorf("Create request should be processed successfully")
+			}
+
+			if db.First(&user, "name = ?", name).RecordNotFound() {
+				t.Errorf("User should be created successfully")
+			}
+
+			if !regexp.MustCompile("qor").MatchString(user.Avatar.URL()) {
+				t.Errorf("Avatar should be saved, but its URL is %v", user.Avatar.URL())
+			}
+		}
+
+		attachment, err := filepath.Abs("tests/logo.png")
+		if err != nil {
+			panic(err)
+		}
+		if part, err := writer.CreateFormFile("QorResource.Avatar", filepath.Base(attachment)); err == nil {
+			if file, err := os.Open(attachment); err == nil {
+				io.Copy(part, file)
+			}
+		}
+		for key, val := range form {
+			_ = writer.WriteField(key, val[0])
+		}
+		writer.Close()
+
+		if req, err := http.Post(fmt.Sprintf("%v/admin/users/%v", server.URL, user.ID), writer.FormDataContentType(), body); err == nil {
+			if req.StatusCode != 200 {
+				t.Errorf("Create request should be processed successfully")
+			}
+
+			if db.First(&user, "name = ?", name).RecordNotFound() {
+				t.Errorf("User should be created successfully")
+			}
+
+			if !regexp.MustCompile("logo").MatchString(user.Avatar.URL()) {
+				t.Errorf("Avatar should be updated, but its URL is %v", user.Avatar.URL())
+			}
+		}
 	}
 }

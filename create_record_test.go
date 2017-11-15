@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	. "github.com/qor/admin/tests/dummy"
 )
 
 func TestCreateRecord(t *testing.T) {
@@ -32,26 +34,8 @@ func TestCreateRecord(t *testing.T) {
 	}
 }
 
-// func TestCreateRecordWithXML(t *testing.T) {
-// 	xml := []byte(`<?xml version="1.0" encoding="utf-8"?>
-// <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-//   <soap:Body>
-//     <ClientGetByGuid xmlns="http://tempuri.org/">
-//       <guid>fc40a874-2902-4539-b8e7-6aa7084644ec</guid>
-//     </ClientGetByGuid>
-//   </soap:Body>
-// </soap:Envelope>`)
-// 	buf := bytes.NewBuffer(xml)
-
-// 	if req, err := http.Post(server.URL+"/admin/user", "application/xml", buf); err == nil {
-// 		fmt.Println(req)
-// 		fmt.Println(err)
-// 		t.Errorf("sss")
-// 	}
-// }
-
-func TestCreateHasOneRecord(t *testing.T) {
-	name := "create_record_and_has_one"
+func TestCreateBelongsToRecord(t *testing.T) {
+	name := "create_belongs_to_record"
 	form := url.Values{
 		"QorResource.Name":              {name},
 		"QorResource.Role":              {"admin"},
@@ -109,6 +93,57 @@ func TestCreateHasManyRecord(t *testing.T) {
 		var addresses []Address
 		if db.Find(&addresses, "user_id = ?", user.ID); len(addresses) != 2 {
 			t.Errorf("Blank address should not be created")
+		}
+	} else {
+		t.Errorf(err.Error())
+	}
+}
+
+func TestCreateHasManyRecordWithOrder(t *testing.T) {
+	name := "create_record_and_has_many_with_order"
+	form := url.Values{
+		"QorResource.Name":                   {name},
+		"QorResource.Role":                   {"admin"},
+		"QorResource.Addresses[0].Address1":  {"address_0"},
+		"QorResource.Addresses[1].Address1":  {"address_1"},
+		"QorResource.Addresses[2].Address1":  {"address_2"},
+		"QorResource.Addresses[11].Address1": {"address_11"},
+	}
+
+	if req, err := http.PostForm(server.URL+"/admin/users", form); err == nil {
+		if req.StatusCode != 200 {
+			t.Errorf("Create request should be processed successfully")
+		}
+
+		var user User
+		if db.First(&user, "name = ?", name).RecordNotFound() {
+			t.Errorf("User should be created successfully")
+		}
+
+		var address0, address1, address2, address11 Address
+		if db.First(&address0, "user_id = ? and address1 = ?", user.ID, "address_0").RecordNotFound() {
+			t.Errorf("Address 0 should be created successfully")
+		}
+
+		if db.First(&address1, "user_id = ? and address1 = ?", user.ID, "address_1").RecordNotFound() {
+			t.Errorf("Address 1 should be created successfully")
+		}
+
+		if db.First(&address2, "user_id = ? and address1 = ?", user.ID, "address_2").RecordNotFound() {
+			t.Errorf("Address 2 should be created successfully")
+		}
+
+		if db.First(&address11, "user_id = ? and address1 = ?", user.ID, "address_11").RecordNotFound() {
+			t.Errorf("Address 11 should be created successfully")
+		}
+
+		if address11.ID < address2.ID || address2.ID < address1.ID || address1.ID < address0.ID {
+			t.Errorf("Address should be created in order")
+		}
+
+		var addresses []Address
+		if db.Find(&addresses, "user_id = ?", user.ID); len(addresses) != 4 {
+			t.Errorf("There should be only %v addresses created", 4)
 		}
 	} else {
 		t.Errorf(err.Error())
@@ -179,10 +214,9 @@ func TestUploadAttachment(t *testing.T) {
 				t.Errorf("User should be created successfully")
 			}
 
-			// fmt.Println(user.Avatar.Path)
-			// if user.Avatar.Path == "" {
-			// 	t.Errorf("Avatar should be saved")
-			// }
+			if user.Avatar.URL() == "" {
+				t.Error("Avatar should be saved, but its URL is blank")
+			}
 		}
 	}
 }

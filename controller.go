@@ -35,10 +35,8 @@ func (ac *Controller) Index(context *Context) {
 
 	responder.With("html", func() {
 		context.Execute("index", result)
-	}).With("json", func() {
-		context.JSON("index", result)
-	}).With("xml", func() {
-		context.XML("index", result)
+	}).With([]string{"json", "xml"}, func() {
+		context.Encode("index", result)
 	}).Respond(context.Request)
 }
 
@@ -74,6 +72,7 @@ func (ac *Controller) New(context *Context) {
 // Create create data
 func (ac *Controller) Create(context *Context) {
 	res := context.Resource
+	status := http.StatusCreated
 	result := res.NewStruct()
 	if context.AddError(res.Decode(context.Context, result)); !context.HasError() {
 		context.AddError(res.CallSave(result, context.Context))
@@ -83,16 +82,17 @@ func (ac *Controller) Create(context *Context) {
 		responder.With("html", func() {
 			context.Writer.WriteHeader(HTTPUnprocessableEntity)
 			context.Execute("new", result)
-		}).With("json", func() {
+		}).With([]string{"json", "xml"}, func() {
 			context.Writer.WriteHeader(HTTPUnprocessableEntity)
-			context.JSON("index", map[string]interface{}{"errors": context.GetErrors()})
+			context.Encode("index", map[string]interface{}{"errors": context.GetErrors()})
 		}).Respond(context.Request)
 	} else {
 		responder.With("html", func() {
 			context.Flash(string(context.t("qor_admin.form.successfully_created", "{{.Name}} was successfully created", res)), "success")
 			http.Redirect(context.Writer, context.Request, context.URLFor(result, res), http.StatusFound)
-		}).With("json", func() {
-			context.JSON("show", result)
+		}).With([]string{"json", "xml"}, func() {
+			context.Writer.WriteHeader(status)
+			context.Encode("show", result)
 		}).Respond(context.Request)
 	}
 }
@@ -110,6 +110,10 @@ func (ac *Controller) renderSingleton(context *Context) (interface{}, bool, erro
 	} else {
 		result, err = context.FindOne()
 	}
+
+	if err == gorm.ErrRecordNotFound {
+		context.Writer.WriteHeader(http.StatusNotFound)
+	}
 	return result, false, err
 }
 
@@ -121,12 +125,11 @@ func (ac *Controller) Show(context *Context) {
 	}
 
 	context.AddError(err)
+
 	responder.With("html", func() {
 		context.Execute("show", result)
-	}).With("json", func() {
-		context.JSON("show", result)
-	}).With("xml", func() {
-		context.XML("show", result)
+	}).With([]string{"json", "xml"}, func() {
+		context.Encode("show", result)
 	}).Respond(context.Request)
 }
 
@@ -140,8 +143,8 @@ func (ac *Controller) Edit(context *Context) {
 	context.AddError(err)
 	responder.With("html", func() {
 		context.Execute("edit", result)
-	}).With("json", func() {
-		context.JSON("edit", result)
+	}).With([]string{"json", "xml"}, func() {
+		context.Encode("edit", result)
 	}).Respond(context.Request)
 }
 
@@ -170,15 +173,15 @@ func (ac *Controller) Update(context *Context) {
 		context.Writer.WriteHeader(HTTPUnprocessableEntity)
 		responder.With("html", func() {
 			context.Execute("edit", result)
-		}).With("json", func() {
-			context.JSON("edit", map[string]interface{}{"errors": context.GetErrors()})
+		}).With([]string{"json", "xml"}, func() {
+			context.Encode("edit", map[string]interface{}{"errors": context.GetErrors()})
 		}).Respond(context.Request)
 	} else {
 		responder.With("html", func() {
-			context.FlashNow(string(context.t("qor_admin.form.successfully_updated", "{{.Name}} was successfully updated", res)), "success")
+			context.Flash(string(context.t("qor_admin.form.successfully_updated", "{{.Name}} was successfully updated", res)), "success")
 			context.Execute("show", result)
-		}).With("json", func() {
-			context.JSON("show", result)
+		}).With([]string{"json", "xml"}, func() {
+			context.Encode("show", result)
 		}).Respond(context.Request)
 	}
 }
@@ -195,8 +198,9 @@ func (ac *Controller) Delete(context *Context) {
 
 	responder.With("html", func() {
 		http.Redirect(context.Writer, context.Request, path.Join(ac.GetRouter().Prefix, res.ToParam()), http.StatusFound)
-	}).With("json", func() {
+	}).With([]string{"json", "xml"}, func() {
 		context.Writer.WriteHeader(status)
+		context.Encode("OK", map[string]interface{}{"status": "ok"})
 	}).Respond(context.Request)
 }
 
@@ -221,25 +225,27 @@ func (ac *Controller) Action(context *Context) {
 			actionArgument.Argument = result
 		}
 
-		err := action.Handle(&actionArgument)
+		context.AddError(action.Handler(&actionArgument))
 
 		if !actionArgument.SkipDefaultResponse {
-			if err == nil {
+			if !context.HasError() {
 				message := string(context.t("qor_admin.actions.executed_successfully", "Action {{.Name}}: Executed successfully", action))
+				context.Flash(message, "success")
 				responder.With("html", func() {
-					context.Flash(message, "success")
 					http.Redirect(context.Writer, context.Request, context.Request.Referer(), http.StatusFound)
-				}).With("json", func() {
-					context.JSON("OK", map[string]string{"message": message, "status": "ok"})
+				}).With([]string{"json", "xml"}, func() {
+					context.Encode("OK", map[string]interface{}{"message": message, "status": "ok"})
 				}).Respond(context.Request)
 			} else {
 				context.Writer.WriteHeader(HTTPUnprocessableEntity)
 				responder.With("html", func() {
-					context.AddError(err)
 					context.Execute("action", action)
-				}).With("json", func() {
-					message := string(context.t("qor_admin.actions.executed_failed", "Action {{.Name}}: Failed to execute", action))
-					context.JSON("OK", map[string]string{"error": message, "status": "error"})
+				}).With([]string{"json", "xml"}, func() {
+					var errs []string
+					for _, err := range context.GetErrors() {
+						errs = append(errs, err.Error())
+					}
+					context.Encode("OK", map[string]interface{}{"errors": errs, "status": "error"})
 				}).Respond(context.Request)
 			}
 		}

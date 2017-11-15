@@ -4,7 +4,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"path"
 	"reflect"
 	"strings"
 
@@ -13,33 +12,16 @@ import (
 	"github.com/qor/roles"
 )
 
-type XMLEncoding struct{}
+// XMLTransformer xml transformer
+type XMLTransformer struct{}
 
-func (XMLEncoding) CouldDecode(decoder Decoder) bool {
-	return false
+// CouldEncode check if encodable
+func (XMLTransformer) CouldEncode(encoder Encoder) bool {
+	return true
 }
 
-func (XMLEncoding) Decode(dst interface{}, decoder Decoder) error {
-	return nil
-}
-
-func (XMLEncoding) CouldEncode(encoder Encoder) bool {
-	if encoder.Context != nil && encoder.Context.Request != nil {
-		if path.Ext(encoder.Context.Request.URL.Path) == ".xml" {
-			return true
-		}
-
-		for _, typ := range getAcceptMimeTypes(encoder.Context.Request) {
-			if typ == ".xml" {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-func (XMLEncoding) Encode(writer io.Writer, encoder Encoder) error {
+// Encode encode encoder to writer as XML
+func (XMLTransformer) Encode(writer io.Writer, encoder Encoder) error {
 	xmlMarshaler := XMLStruct{
 		Action:   encoder.Action,
 		Resource: encoder.Resource,
@@ -58,6 +40,7 @@ func (XMLEncoding) Encode(writer io.Writer, encoder Encoder) error {
 	return err
 }
 
+// XMLStruct used to decode resource to xml
 type XMLStruct struct {
 	Action   string
 	Resource *Resource
@@ -65,6 +48,7 @@ type XMLStruct struct {
 	Result   interface{}
 }
 
+// Initialize initialize a resource to XML Transformer
 func (xmlStruct XMLStruct) Initialize(value interface{}, res *Resource) XMLStruct {
 	return XMLStruct{
 		Resource: res,
@@ -74,10 +58,12 @@ func (xmlStruct XMLStruct) Initialize(value interface{}, res *Resource) XMLStruc
 	}
 }
 
+// MarshalXML implement MarshalXMLInterface
 func (xmlStruct XMLStruct) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	return XMLMarshalDefaultHandler(xmlStruct, e, start)
 }
 
+// XMLMarshalDefaultHandler default xml marshal handler, allow developers overwrite it
 var XMLMarshalDefaultHandler = func(xmlStruct XMLStruct, e *xml.Encoder, start xml.StartElement) error {
 	defaultStartElement := xml.StartElement{Name: xml.Name{Local: "XMLStruct"}}
 	reflectValue := reflect.Indirect(reflect.ValueOf(xmlStruct.Result))
@@ -172,7 +158,7 @@ var XMLMarshalDefaultHandler = func(xmlStruct XMLStruct, e *xml.Encoder, start x
 					}
 
 					// has_one, has_many checker to avoid dead loop
-					if meta.Resource != nil && (meta.FieldStruct != nil && meta.FieldStruct.Relationship != nil && (meta.FieldStruct.Relationship.Kind == "has_one" || meta.FieldStruct.Relationship.Kind == "has_many")) {
+					if meta.Resource != nil && (meta.FieldStruct != nil && meta.FieldStruct.Relationship != nil && (meta.FieldStruct.Relationship.Kind == "has_one" || meta.FieldStruct.Relationship.Kind == "has_many" || meta.Type == "single_edit" || meta.Type == "collection_edit")) {
 						if err := e.EncodeElement(xmlStruct.Initialize(context.RawValueOf(xmlStruct.Result, meta), meta.Resource), metaStart); err != nil {
 							return err
 						}

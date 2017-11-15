@@ -6,8 +6,8 @@
         &.has-subnav {
             padding-top: 56px;
         }
-        >.qor-page__body {
-            >.qor-table-container {
+        > .qor-page__body {
+            > .qor-table-container {
                 margin-top: 0;
             }
         }
@@ -25,10 +25,10 @@
             border-radius: 50px;
         }
         &::-webkit-scrollbar-thumb:hover {
-            background: unquote("rgb(#{$color-primary})");
+            background: unquote('rgb(#{$color-primary})');
         }
         &::-webkit-scrollbar-thumb:active {
-            background: unquote("rgb(#{$color-primary})");
+            background: unquote('rgb(#{$color-primary})');
         }
         &::-webkit-scrollbar-track {
             background: transparent;
@@ -54,7 +54,7 @@
             color: #fff;
         }
         .mdl-layout__header-row {
-            >.mdl-button--icon,
+            > .mdl-button--icon,
             .qor-search-container {
                 margin: 0 4px;
             }
@@ -81,12 +81,12 @@
         }
     }
     &.mdl-layout.is-upgraded .mdl-layout__tab.is-active::after {
-        background: unquote("rgb(#{$color-white})");
+        background: unquote('rgb(#{$color-white})');
     }
     .mdl-layout-text {
-        color: unquote("rgba(#{$color-white}, 0.54)");
+        color: unquote('rgba(#{$color-white}, 0.54)');
     }
-    .mdl-navigation__link>.material-icons {
+    .mdl-navigation__link > .material-icons {
         vertical-align: middle;
     }
     .mdl-layout__drawer {
@@ -96,13 +96,13 @@
 
 .qor-layout__sidebar {
     height: 100%;
-    >.sidebar-header {
+    > .sidebar-header {
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         height: 64px;
-        >a {
+        > a {
             text-decoration: none;
             &:hover,
             &:focus {
@@ -121,7 +121,7 @@
                 width: 100px;
                 padding: 22px 10px;
                 color: #757575;
-                >.material-icons {
+                > .material-icons {
                     position: relative;
                     top: -1px;
                     margin-left: 3px;
@@ -131,13 +131,13 @@
             }
         }
     }
-    >.sidebar-userinfo {
+    > .sidebar-userinfo {
         height: 48px;
         position: absolute;
         top: 64px;
         left: 0;
         right: 0;
-        border-bottom: 1px solid unquote("rgba(#{$color-black}, 0.12)");
+        border-bottom: 1px solid unquote('rgba(#{$color-black}, 0.12)');
         padding-left: 16px;
         h5 {
             font-size: 14px;
@@ -148,13 +148,13 @@
             font-weight: 300;
             float: left;
         }
-        &>a {
+        & > a {
             float: right;
             margin-top: 8px;
             margin-right: 8px;
         }
     }
-    >.sidebar-body {
+    > .sidebar-body {
         position: absolute;
         top: 112px;
         right: 0;
@@ -163,13 +163,13 @@
         overflow: visible;
         overflow-y: auto;
     }
-    >.sidebar-footer {
+    > .sidebar-footer {
         position: absolute;
         left: 0;
         right: 0;
         bottom: 0;
         padding: 8px 16px;
-        border-top: 1px solid unquote("rgba(#{$color-black}, 0.12)");
+        border-top: 1px solid unquote('rgba(#{$color-black}, 0.12)');
         line-height: 24px;
     }
 }
@@ -185,10 +185,10 @@
     transition: left 0.35s ease;
 }
 
-.has-subnav{
-  .qor-page__header{
-    height: auto;
-  }
+.has-subnav {
+    .qor-page__header {
+        height: auto;
+    }
 }
 .qor-page__header {
     position: fixed;
@@ -209,7 +209,7 @@
     .qor-search {
         height: 48px;
     }
-    +.qor-page__body {
+    + .qor-page__body {
         padding-top: 48px;
     }
 }
@@ -257,7 +257,7 @@
     line-height: 32px;
     text-transform: uppercase;
     text-decoration: none;
-    color: unquote("rgb(#{$color-primary})");
+    color: unquote('rgb(#{$color-primary})');
 }
 
 .mdl-layout__header-row {
@@ -266,11 +266,15 @@
 
 .qor-page__tips {
     text-align: center;
-    font-size: 20px;
+    font-size: 15px;
+    color: unquote('rgba(#{$color-black}, 0.75)');
     margin-top: 48px;
 }
 
 .qor-fieldset {
+    .qor-field + .qor-page__tips {
+        margin-top: -28px;
+    }
     .qor-page__tips {
         margin-top: 0;
         margin-bottom: 0;
@@ -286,7 +290,7 @@
 }
 
 @media screen and (min-width: 1025px) {
-    .mdl-layout--fixed-drawer>.mdl-layout__header .mdl-layout__header-row {
+    .mdl-layout--fixed-drawer > .mdl-layout__header .mdl-layout__header-row {
         padding-left: 24px;
     }
     .qor-page__col-2 {
@@ -304,10 +308,9 @@
     }
 }
 
-
 /* Fix refresh page sidebar height flash bug */
 
-body>.mdl-layout {
+body > .mdl-layout {
     bottom: 0;
     position: absolute;
 }

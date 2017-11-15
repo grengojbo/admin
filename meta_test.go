@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	. "github.com/qor/admin/tests/dummy"
+
 	"github.com/qor/admin"
 	"github.com/qor/qor"
 	"github.com/qor/qor/resource"
@@ -11,7 +13,7 @@ import (
 
 func TestTextInput(t *testing.T) {
 	user := Admin.AddResource(&User{})
-	meta := user.GetMetaOrNew("Name")
+	meta := user.GetMeta("Name")
 
 	if meta.Label != "Name" {
 		t.Error("default label not set")
@@ -29,10 +31,10 @@ func TestTextInput(t *testing.T) {
 func TestDefaultMetaType(t *testing.T) {
 	var (
 		user        = Admin.AddResource(&User{})
-		booleanMeta = user.GetMetaOrNew("Active")
-		timeMeta    = user.GetMetaOrNew("RegisteredAt")
-		numberMeta  = user.GetMetaOrNew("Age")
-		fileMeta    = user.GetMetaOrNew("Avatar")
+		booleanMeta = user.GetMeta("Active")
+		timeMeta    = user.GetMeta("RegisteredAt")
+		numberMeta  = user.GetMeta("Age")
+		fileMeta    = user.GetMeta("Avatar")
 	)
 
 	if booleanMeta.Type != "checkbox" {
@@ -58,19 +60,19 @@ func TestRelationFieldMetaType(t *testing.T) {
 
 	user := Admin.AddResource(&User{})
 
-	userProfileMeta := user.GetMetaOrNew("Profile")
+	userProfileMeta := user.GetMeta("Profile")
 
 	if userProfileMeta.Type != "single_edit" {
 		t.Error("has_one relation doesn't generate single_edit type meta")
 	}
 
-	userAddressesMeta := user.GetMetaOrNew("Addresses")
+	userAddressesMeta := user.GetMeta("Addresses")
 
 	if userAddressesMeta.Type != "collection_edit" {
 		t.Error("has_many relation doesn't generate collection_edit type meta")
 	}
 
-	userLanguagesMeta := user.GetMetaOrNew("Languages")
+	userLanguagesMeta := user.GetMeta("Languages")
 
 	if userLanguagesMeta.Type != "select_many" {
 		t.Error("many_to_many relation doesn't generate select_many type meta")
@@ -79,7 +81,7 @@ func TestRelationFieldMetaType(t *testing.T) {
 
 func TestGetStringMetaValue(t *testing.T) {
 	user := Admin.AddResource(&User{})
-	stringMeta := user.GetMetaOrNew("Name")
+	stringMeta := user.GetMeta("Name")
 
 	UserName := "user name"
 	userRecord := &User{Name: UserName}
@@ -93,7 +95,7 @@ func TestGetStringMetaValue(t *testing.T) {
 
 func TestGetStructMetaValue(t *testing.T) {
 	user := Admin.AddResource(&User{})
-	structMeta := user.GetMetaOrNew("CreditCard")
+	structMeta := user.GetMeta("CreditCard")
 
 	creditCard := CreditCard{
 		Number: "123456",
@@ -113,7 +115,7 @@ func TestGetStructMetaValue(t *testing.T) {
 
 func TestGetSliceMetaValue(t *testing.T) {
 	user := Admin.AddResource(&User{})
-	sliceMeta := user.GetMetaOrNew("Addresses")
+	sliceMeta := user.GetMeta("Addresses")
 
 	address1 := &Address{Address1: "an address"}
 	address2 := &Address{Address1: "another address"}
@@ -131,7 +133,7 @@ func TestGetSliceMetaValue(t *testing.T) {
 
 func TestStringMetaSetter(t *testing.T) {
 	user := Admin.AddResource(&User{})
-	meta := user.GetMetaOrNew("Name")
+	meta := user.GetMeta("Name")
 
 	UserName := "new name"
 	userRecord := &User{Name: UserName}

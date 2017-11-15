@@ -1,43 +1,80 @@
-$(function () {
-
+$(function() {
   'use strict';
 
-  $('.qor-menu-container').on('click', '> ul > li > a', function () {
-    var $this = $(this);
-    var $li = $this.parent();
-    var $ul = $this.next('ul');
+  let menuDatas = [],
+    storageName = 'qoradmin_menu_status',
+    lastMenuStatus = localStorage.getItem(storageName);
 
-    if (!$ul.length) {
-      return;
-    }
-
-    if ($ul.hasClass('in')) {
-      $li.removeClass('is-expanded');
-      $ul.one('transitionend', function () {
-        $ul.removeClass('collapsing in');
-      }).addClass('collapsing').height(0);
-    } else {
-      $li.addClass('is-expanded');
-      $ul.one('transitionend', function () {
-        $ul.removeClass('collapsing');
-      }).addClass('collapsing in').height($ul.prop('scrollHeight'));
-    }
-  }).find('> ul > li > a').each(function () {
-    var $this = $(this);
-    var $li = $this.parent();
-    var $ul = $this.next('ul');
-
-    if (!$ul.length) {
-      return;
-    }
-
-    $li.addClass('has-menu is-expanded');
-    $ul.addClass('collapse in').height($ul.prop('scrollHeight'));
-  });
-
-  if ($('.qor-page').find('.qor-page__header').length){
-    $('.qor-page').addClass("has-header");
-    $('header.mdl-layout__header').addClass('has-action');
+  if (lastMenuStatus && lastMenuStatus.length) {
+    menuDatas = lastMenuStatus.split(',');
   }
 
+  $('.qor-menu-container')
+    .on('click', '> ul > li > a', function() {
+      let $this = $(this),
+        $li = $this.parent(),
+        $ul = $this.next('ul'),
+        menuName = $li.attr('qor-icon-name');
+
+      if (!$ul.length) {
+        return;
+      }
+
+      if ($ul.hasClass('in')) {
+        menuDatas.push(menuName);
+
+        $li.removeClass('is-expanded');
+        $ul
+          .one('transitionend', function() {
+            $ul.removeClass('collapsing in');
+          })
+          .addClass('collapsing')
+          .height(0);
+      } else {
+        menuDatas = _.without(menuDatas, menuName);
+
+        $li.addClass('is-expanded');
+        $ul
+          .one('transitionend', function() {
+            $ul.removeClass('collapsing');
+          })
+          .addClass('collapsing in')
+          .height($ul.prop('scrollHeight'));
+      }
+      localStorage.setItem(storageName, menuDatas);
+    })
+    .find('> ul > li > a')
+    .each(function() {
+      let $this = $(this),
+        $li = $this.parent(),
+        $ul = $this.next('ul'),
+        menuName = $li.attr('qor-icon-name');
+
+      if (!$ul.length) {
+        return;
+      }
+
+      $ul.addClass('collapse');
+      $li.addClass('has-menu');
+
+      if (menuDatas.indexOf(menuName) != -1) {
+        $ul.height(0);
+      } else {
+        $li.addClass('is-expanded');
+        $ul.addClass('in').height($ul.prop('scrollHeight'));
+      }
+    });
+
+  let $pageHeader = $('.qor-page > .qor-page__header'),
+    $pageBody = $('.qor-page > .qor-page__body'),
+    triggerHeight = $pageHeader.find('.qor-page-subnav__header').length ? 96 : 48;
+
+  if ($pageHeader.length) {
+    if ($pageHeader.height() > triggerHeight) {
+      $pageBody.css('padding-top', $pageHeader.height());
+    }
+
+    $('.qor-page').addClass('has-header');
+    $('header.mdl-layout__header').addClass('has-action');
+  }
 });

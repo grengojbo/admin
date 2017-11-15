@@ -10,23 +10,22 @@
         factory(jQuery);
     }
 })(function($) {
-
     'use strict';
 
-    var location = window.location;
-    var $document = $(document);
-    var NAMESPACE = 'qor.filter';
-    var EVENT_FILTER_CHANGE = 'filterChanged.' + NAMESPACE;
-    var EVENT_ENABLE = 'enable.' + NAMESPACE;
-    var EVENT_DISABLE = 'disable.' + NAMESPACE;
-    var EVENT_CLICK = 'click.' + NAMESPACE;
-    var CLASS_BOTTOMSHEETS = '.qor-bottomsheets';
-    var CLASS_DATE_START = '.qor-filter__start';
-    var CLASS_DATE_END = '.qor-filter__end';
-    var CLASS_SEARCH_PARAM = '[data-search-param]';
-    var CLASS_FILTER_SELECTOR = '.qor-filter__dropdown';
-    var CLASS_FILTER_TOGGLE = '.qor-filter-toggle';
-    var CLASS_IS_SELECTED = 'is-selected';
+    let location = window.location,
+        $document = $(document),
+        NAMESPACE = 'qor.filter',
+        EVENT_FILTER_CHANGE = 'filterChanged.' + NAMESPACE,
+        EVENT_ENABLE = 'enable.' + NAMESPACE,
+        EVENT_DISABLE = 'disable.' + NAMESPACE,
+        EVENT_CLICK = 'click.' + NAMESPACE,
+        CLASS_BOTTOMSHEETS = '.qor-bottomsheets',
+        CLASS_DATE_START = '.qor-filter__start',
+        CLASS_DATE_END = '.qor-filter__end',
+        CLASS_SEARCH_PARAM = '[data-search-param]',
+        CLASS_FILTER_SELECTOR = '.qor-filter__dropdown',
+        CLASS_FILTER_TOGGLE = '.qor-filter-toggle',
+        CLASS_IS_SELECTED = 'is-selected';
 
     function QorFilterTime(element, options) {
         this.$element = $(element);
@@ -39,41 +38,36 @@
 
         init: function() {
             this.bind();
-            var $element = this.$element;
+            let $element = this.$element,
+                lcoal_moment = window.moment();
 
             this.$timeStart = $element.find(CLASS_DATE_START);
             this.$timeEnd = $element.find(CLASS_DATE_END);
             this.$searchParam = $element.find(CLASS_SEARCH_PARAM);
             this.$searchButton = $element.find(this.options.button);
 
-            this.startWeekDate = window.moment().startOf('isoweek').toDate();
-            this.endWeekDate = window.moment().endOf('isoweek').toDate();
+            this.startWeekDate = lcoal_moment.startOf('isoweek').toDate();
+            this.endWeekDate = lcoal_moment.endOf('isoweek').toDate();
 
-            this.startMonthDate = window.moment().startOf('month').toDate();
-            this.endMonthDate = window.moment().endOf('month').toDate();
+            this.startMonthDate = lcoal_moment.startOf('month').toDate();
+            this.endMonthDate = lcoal_moment.endOf('month').toDate();
             this.initActionTemplate();
-
         },
 
         bind: function() {
             var options = this.options;
 
-            this.$element.
-            on(EVENT_CLICK, options.trigger, this.show.bind(this)).
-            on(EVENT_CLICK, options.label, this.setFilterTime.bind(this)).
-            on(EVENT_CLICK, options.clear, this.clear.bind(this)).
-            on(EVENT_CLICK, options.button, this.search.bind(this));
+            this.$element
+                .on(EVENT_CLICK, options.trigger, this.show.bind(this))
+                .on(EVENT_CLICK, options.label, this.setFilterTime.bind(this))
+                .on(EVENT_CLICK, options.clear, this.clear.bind(this))
+                .on(EVENT_CLICK, options.button, this.search.bind(this));
 
             $document.on(EVENT_CLICK, this.close);
         },
 
         unbind: function() {
-            var options = this.options;
-            this.$element.
-            off(EVENT_CLICK, options.trigger, this.show.bind(this)).
-            off(EVENT_CLICK, options.label, this.setFilterTime.bind(this)).
-            off(EVENT_CLICK, options.clear, this.clear.bind(this)).
-            off(EVENT_CLICK, options.button, this.search.bind(this));
+            this.$element.off(EVENT_CLICK);
         },
 
         initActionTemplate: function() {
@@ -86,7 +80,10 @@
                 this.$timeEnd.val(scheduleEndAt);
 
                 scheduleEndAt = !scheduleEndAt ? '' : ' - ' + scheduleEndAt;
-                $filterToggle.addClass('active clearable').find('.qor-selector-label').html(scheduleStartAt + scheduleEndAt);
+                $filterToggle
+                    .addClass('active clearable')
+                    .find('.qor-selector-label')
+                    .html(scheduleStartAt + scheduleEndAt);
                 $filterToggle.append('<i class="material-icons qor-selector-clear">clear</i>');
             }
         },
@@ -111,10 +108,13 @@
         },
 
         setFilterTime: function(e) {
-            var $target = $(e.target),
+            let $target = $(e.target),
                 data = $target.data(),
                 range = data.filterRange,
-                startTime, endTime, startDate, endDate;
+                startTime,
+                endTime,
+                startDate,
+                endDate;
 
             if (!range) {
                 return false;
@@ -160,10 +160,10 @@
             var month = dateNow.getMonth() + 1,
                 date = dateNow.getDate();
 
-            month = (month < 8) ? ('0' + month) : month;
-            date = (date < 10) ? ('0' + date) : date;
+            month = month < 8 ? '0' + month : month;
+            date = date < 10 ? '0' + date : date;
 
-            return (dateNow.getFullYear() + '-' + month + '-' + date);
+            return dateNow.getFullYear() + '-' + month + '-' + date;
         },
 
         clear: function() {
@@ -177,46 +177,51 @@
 
             this.$searchButton.click();
             return false;
-
         },
 
         getUrlParameter: function(name) {
-            var search = location.search;
-            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
-            var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
-            var results = regex.exec(search);
+            let search = location.search,
+                parameterName = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]'),
+                regex = new RegExp('[\\?&]' + parameterName + '=([^&#]*)'),
+                results = regex.exec(search);
+
             return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
         },
 
-        updateQueryStringParameter: function(key, value, uri) {
-            var href = uri || location.href,
+        updateQueryStringParameter: function(key, value, url) {
+            let href = url || location.href,
+                local_hash = href.match(/#\S*$/) || '',
                 escapedkey = String(key).replace(/[\\^$*+?.()|[\]{}]/g, '\\$&'),
                 re = new RegExp('([?&])' + escapedkey + '=.*?(&|$)', 'i'),
                 separator = href.indexOf('?') !== -1 ? '&' : '?';
 
+            if (local_hash) {
+                local_hash = local_hash[0];
+                href = href.replace(local_hash, '');
+            }
+
             if (href.match(re)) {
                 if (value) {
-                    return href.replace(re, '$1' + key + '=' + value + '$2');
+                    href = href.replace(re, '$1' + key + '=' + value + '$2');
                 } else {
                     if (RegExp.$1 === '?' || RegExp.$1 === RegExp.$2) {
-                        return href.replace(re, '$1');
+                        href = href.replace(re, '$1');
                     } else {
-                        return href.replace(re, '');
+                        href = href.replace(re, '');
                     }
                 }
             } else if (value) {
-                return href + separator + key + '=' + value;
+                href = href + separator + key + '=' + value;
             }
 
-            return href;
+            return href + local_hash;
         },
 
         search: function() {
             var $searchParam = this.$searchParam,
-                uri,
+                href = location.href,
                 _this = this,
                 type = 'qor.filter.time';
-
 
             if (!$searchParam.length) {
                 return;
@@ -226,13 +231,14 @@
                 var $this = $(this),
                     searchParam = $this.data().searchParam,
                     val = $this.val();
-                uri = _this.updateQueryStringParameter(searchParam, val, uri);
+
+                href = _this.updateQueryStringParameter(searchParam, val, href);
             });
 
             if (this.$element.closest(CLASS_BOTTOMSHEETS).length) {
-                $(CLASS_BOTTOMSHEETS).trigger(EVENT_FILTER_CHANGE, [uri, type]);
+                $(CLASS_BOTTOMSHEETS).trigger(EVENT_FILTER_CHANGE, [href, type]);
             } else {
-                location.href = uri;
+                location.href = href;
             }
         },
 
@@ -263,7 +269,7 @@
                 $this.data(NAMESPACE, (data = new QorFilterTime(this, options)));
             }
 
-            if (typeof options === 'string' && $.isFunction(fn = data[options])) {
+            if (typeof options === 'string' && $.isFunction((fn = data[options]))) {
                 fn.apply(data);
             }
         });
@@ -278,16 +284,15 @@
             clear: '.qor-selector-clear'
         };
 
-        $(document).
-        on(EVENT_DISABLE, function(e) {
-            QorFilterTime.plugin.call($(selector, e.target), 'destroy');
-        }).
-        on(EVENT_ENABLE, function(e) {
-            QorFilterTime.plugin.call($(selector, e.target), options);
-        }).
-        triggerHandler(EVENT_ENABLE);
+        $(document)
+            .on(EVENT_DISABLE, function(e) {
+                QorFilterTime.plugin.call($(selector, e.target), 'destroy');
+            })
+            .on(EVENT_ENABLE, function(e) {
+                QorFilterTime.plugin.call($(selector, e.target), options);
+            })
+            .triggerHandler(EVENT_ENABLE);
     });
 
     return QorFilterTime;
-
 });

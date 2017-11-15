@@ -10,7 +10,6 @@
         factory(jQuery);
     }
 })(function($) {
-
     'use strict';
 
     const NAMESPACE = 'qor.inlineEdit',
@@ -21,6 +20,7 @@
         EVENT_MOUSELEAVE = 'mouseleave.' + NAMESPACE,
         CLASS_FIELD = '.qor-field',
         CLASS_FIELD_SHOW = '.qor-field__show',
+        CLASS_FIELD_SHOW_INNER = '.qor-field__show-inner',
         CLASS_EDIT = '.qor-inlineedit__edit',
         CLASS_SAVE = '.qor-inlineedit__save',
         CLASS_BUTTONS = '.qor-inlineedit__buttons',
@@ -80,8 +80,13 @@
                 .off(EVENT_CLICK, CLASS_EDIT, this.showEdit);
         },
 
-        showEditButton: function() {
+        showEditButton: function(e) {
             let $edit = $(QorInlineEdit.TEMPLATE_EDIT);
+
+            if ($(e.target).closest(CLASS_FIELD).find('input:disabled, textarea:disabled,select:disabled').length) {
+                return false;
+            }
+
             $edit.appendTo($(this));
         },
 
@@ -115,7 +120,6 @@
             }
 
             if (names.length) {
-
                 $.ajax($form.prop('action'), {
                     method: $form.prop('method'),
                     data: inputData,
@@ -124,9 +128,15 @@
                         $btn.prop('disabled', true);
                     },
                     success: function(data) {
-                        let newValue = getJsonData(names, data);
+                        let newValue = getJsonData(names, data),
+                            $show = $parent.removeClass(CLASS_CONTAINER).find(CLASS_FIELD_SHOW);
 
-                        $parent.removeClass(CLASS_CONTAINER).find(CLASS_FIELD_SHOW).html(newValue);
+                        if ($show.find(CLASS_FIELD_SHOW_INNER).length) {
+                            $show.find(CLASS_FIELD_SHOW_INNER).html(newValue);
+                        } else {
+                            $show.html(newValue);
+                        }
+
                         $parent.find(CLASS_BUTTONS).remove();
                         $btn.prop('disabled', false);
                     },
@@ -158,7 +168,7 @@
                 $this.data(NAMESPACE, (data = new QorInlineEdit(this, options)));
             }
 
-            if (typeof options === 'string' && $.isFunction(fn = data[options])) {
+            if (typeof options === 'string' && $.isFunction((fn = data[options]))) {
                 fn.call(data);
             }
         });
@@ -168,16 +178,15 @@
         let selector = '[data-toggle="qor.inlineEdit"]',
             options = {};
 
-        $(document).
-        on(EVENT_DISABLE, function(e) {
-            QorInlineEdit.plugin.call($(selector, e.target), 'destroy');
-        }).
-        on(EVENT_ENABLE, function(e) {
-            QorInlineEdit.plugin.call($(selector, e.target), options);
-        }).
-        triggerHandler(EVENT_ENABLE);
+        $(document)
+            .on(EVENT_DISABLE, function(e) {
+                QorInlineEdit.plugin.call($(selector, e.target), 'destroy');
+            })
+            .on(EVENT_ENABLE, function(e) {
+                QorInlineEdit.plugin.call($(selector, e.target), options);
+            })
+            .triggerHandler(EVENT_ENABLE);
     });
 
     return QorInlineEdit;
-
 });

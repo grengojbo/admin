@@ -10,9 +10,31 @@ import (
 	"github.com/qor/roles"
 )
 
+// ActionArgument action argument that used in handle
+type ActionArgument struct {
+	PrimaryValues       []string
+	Context             *Context
+	Argument            interface{}
+	SkipDefaultResponse bool
+}
+
+// Action action definiation
+type Action struct {
+	Name        string
+	Label       string
+	Method      string
+	URL         func(record interface{}, context *Context) string
+	URLOpenType string
+	Visible     func(record interface{}, context *Context) bool
+	Handler     func(argument *ActionArgument) error
+	Modes       []string
+	Resource    *Resource
+	Permission  *roles.Permission
+}
+
 // Action register action for qor resource
 func (res *Resource) Action(action *Action) *Action {
-	for _, a := range res.Actions {
+	for _, a := range res.actions {
 		if a.Name == action.Name {
 			if action.Label != "" {
 				a.Label = action.Label
@@ -34,8 +56,8 @@ func (res *Resource) Action(action *Action) *Action {
 				a.Visible = action.Visible
 			}
 
-			if action.Handle != nil {
-				a.Handle = action.Handle
+			if action.Handler != nil {
+				a.Handler = action.Handler
 			}
 
 			if len(action.Modes) != 0 {
@@ -75,28 +97,39 @@ func (res *Resource) Action(action *Action) *Action {
 		}
 	}
 
-	res.Actions = append(res.Actions, action)
+	res.actions = append(res.actions, action)
 
 	// Register Actions into Router
-	if !res.Config.Invisible {
+	{
 		actionController := &Controller{Admin: res.GetAdmin(), action: action}
 		primaryKeyParams := res.ParamIDName()
 
-		// Bulk actions
-		res.RegisterRoute("GET", path.Join("!action", action.ToParam()), actionController.Action, &RouteConfig{Permissioner: action, PermissionMode: roles.Update})
-		res.RegisterRoute("PUT", path.Join("!action", action.ToParam()), actionController.Action, &RouteConfig{Permissioner: action, PermissionMode: roles.Update})
+		if action.Resource != nil {
+			// Bulk Action
+			res.RegisterRoute("GET", path.Join("!action", action.ToParam()), actionController.Action, &RouteConfig{Permissioner: action, PermissionMode: roles.Update})
+			// Single Resource Action
+			res.RegisterRoute("GET", path.Join(primaryKeyParams, action.ToParam()), actionController.Action, &RouteConfig{Permissioner: action, PermissionMode: roles.Update})
+		}
 
-		// Resource action
-		res.RegisterRoute("GET", path.Join(primaryKeyParams, action.ToParam()), actionController.Action, &RouteConfig{Permissioner: action, PermissionMode: roles.Update})
-		res.RegisterRoute("PUT", path.Join(primaryKeyParams, action.ToParam()), actionController.Action, &RouteConfig{Permissioner: action, PermissionMode: roles.Update})
+		if action.Handler != nil {
+			// Bulk Action
+			res.RegisterRoute("PUT", path.Join("!action", action.ToParam()), actionController.Action, &RouteConfig{Permissioner: action, PermissionMode: roles.Update})
+			// Single Resource action
+			res.RegisterRoute("PUT", path.Join(primaryKeyParams, action.ToParam()), actionController.Action, &RouteConfig{Permissioner: action, PermissionMode: roles.Update})
+		}
 	}
 
 	return action
 }
 
+// GetActions get registered filters
+func (res *Resource) GetActions() []*Action {
+	return res.actions
+}
+
 // GetAction get defined action
 func (res *Resource) GetAction(name string) *Action {
-	for _, action := range res.Actions {
+	for _, action := range res.actions {
 		if action.Name == name {
 			return action
 		}
@@ -104,57 +137,19 @@ func (res *Resource) GetAction(name string) *Action {
 	return nil
 }
 
-// ActionArgument action argument that used in handle
-type ActionArgument struct {
-	PrimaryValues       []string
-	Context             *Context
-	Argument            interface{}
-	SkipDefaultResponse bool
-}
-
-// Action action definiation
-type Action struct {
-	Name        string
-	Label       string
-	Method      string
-	URL         func(record interface{}, context *Context) string
-	URLOpenType string
-	Visible     func(record interface{}, context *Context) bool
-	Handle      func(argument *ActionArgument) error
-	Modes       []string
-	Resource    *Resource
-	Permission  *roles.Permission
-}
-
 // ToParam used to register routes for actions
 func (action Action) ToParam() string {
 	return utils.ToParamString(action.Name)
 }
 
-// IsAllowed check if current user has permission to view the action
-func (action Action) IsAllowed(mode roles.PermissionMode, context *Context, records ...interface{}) bool {
-	if action.Visible != nil {
-		for _, record := range records {
-			if !action.Visible(record, context) {
-				return false
-			}
-		}
-	}
-
-	if action.Permission != nil {
-		return action.HasPermission(mode, context.Context)
-	}
-
-	if context.Resource != nil {
-		return context.Resource.HasPermission(mode, context.Context)
-	}
-	return true
-}
-
 // HasPermission check if current user has permission for the action
 func (action Action) HasPermission(mode roles.PermissionMode, context *qor.Context) bool {
 	if action.Permission != nil {
-		return action.Permission.HasPermission(mode, context.Roles...)
+		var roles = []interface{}{}
+		for _, role := range context.Roles {
+			roles = append(roles, role)
+		}
+		return action.Permission.HasPermission(mode, roles...)
 	}
 
 	return true
@@ -169,6 +164,10 @@ func (actionArgument *ActionArgument) FindSelectedRecords() []interface{} {
 		sqls      []string
 		sqlParams []interface{}
 	)
+
+	if len(actionArgument.PrimaryValues) == 0 {
+		return records
+	}
 
 	clone := context.clone()
 	for _, primaryValue := range actionArgument.PrimaryValues {
@@ -187,4 +186,29 @@ func (actionArgument *ActionArgument) FindSelectedRecords() []interface{} {
 		records = append(records, resultValues.Index(i).Interface())
 	}
 	return records
+}
+
+// IsAllowed check if current user has permission to view the action
+func (action Action) isAllowed(mode roles.PermissionMode, context *Context, records ...interface{}) bool {
+	if action.Visible != nil {
+		if len(records) == 0 {
+			if !action.Visible(nil, context) {
+				return false
+			}
+		}
+		for _, record := range records {
+			if !action.Visible(record, context) {
+				return false
+			}
+		}
+	}
+
+	if action.Permission != nil {
+		return action.HasPermission(mode, context.Context)
+	}
+
+	if context.Resource != nil {
+		return context.Resource.HasPermission(mode, context.Context)
+	}
+	return true
 }

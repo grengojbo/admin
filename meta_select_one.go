@@ -18,11 +18,13 @@ type SelectOneConfig struct {
 	Collection               interface{} // []string, [][]string, func(interface{}, *qor.Context) [][]string, func(interface{}, *admin.Context) [][]string
 	Placeholder              string
 	AllowBlank               bool
+	DefaultCreating          bool
 	SelectionTemplate        string
 	SelectMode               string // select, select_async, bottom_sheet
 	Select2ResultTemplate    template.JS
 	Select2SelectionTemplate template.JS
 	RemoteDataResource       *Resource
+	PrimaryField             string
 	metaConfig
 	getCollection func(interface{}, *Context) [][]string
 }
@@ -68,9 +70,10 @@ func (selectOneConfig *SelectOneConfig) ConfigureQorMeta(metaor resource.Metaor)
 	}
 }
 
+// ConfigureQORAdminFilter configure admin filter
 func (selectOneConfig *SelectOneConfig) ConfigureQORAdminFilter(filter *Filter) {
 	var structField *gorm.StructField
-	if field, ok := filter.Resource.GetAdmin().Config.DB.NewScope(filter.Resource.Value).FieldByName(filter.Name); ok {
+	if field, ok := filter.Resource.GetAdmin().DB.NewScope(filter.Resource.Value).FieldByName(filter.Name); ok {
 		structField = field.StructField
 	}
 
@@ -82,6 +85,7 @@ func (selectOneConfig *SelectOneConfig) ConfigureQORAdminFilter(filter *Filter) 
 	filter.Type = "select_one"
 }
 
+// FilterValue filter value
 func (selectOneConfig *SelectOneConfig) FilterValue(filter *Filter, context *Context) interface{} {
 	var (
 		prefix  = fmt.Sprintf("filters[%v].", filter.Name)
@@ -146,6 +150,13 @@ func (selectOneConfig *SelectOneConfig) prepareDataSource(field *gorm.StructFiel
 			}
 		}
 
+		if selectOneConfig.PrimaryField == "" {
+			for _, primaryField := range selectOneConfig.RemoteDataResource.PrimaryFields {
+				selectOneConfig.PrimaryField = primaryField.Name
+				break
+			}
+		}
+
 		if selectOneConfig.SelectMode == "" {
 			selectOneConfig.SelectMode = "select_async"
 		}
@@ -169,8 +180,8 @@ func (selectOneConfig *SelectOneConfig) prepareDataSource(field *gorm.StructFiel
 
 	if res != nil && (selectOneConfig.SelectMode == "select_async" || selectOneConfig.SelectMode == "bottom_sheet") {
 		if remoteDataResource := selectOneConfig.RemoteDataResource; remoteDataResource != nil {
-			if remoteDataResource.params == "" {
-				remoteDataResource.params = path.Join(routePrefix, res.ToParam(), field.Name)
+			if !remoteDataResource.mounted {
+				remoteDataResource.params = path.Join(routePrefix, res.ToParam(), field.Name, fmt.Sprintf("%p", remoteDataResource))
 				res.GetAdmin().RegisterResourceRouters(remoteDataResource, "create", "update", "read", "delete")
 			}
 		} else {

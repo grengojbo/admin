@@ -126,7 +126,7 @@ func (res *Resource) ConvertSectionToMetas(sections []*Section) []*Meta {
 	for _, section := range sections {
 		for _, row := range section.Rows {
 			for _, col := range row {
-				meta := res.GetMetaOrNew(col)
+				meta := res.GetMeta(col)
 				if meta != nil {
 					metas = append(metas, meta)
 				}
