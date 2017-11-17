@@ -1,6 +1,6 @@
 <div class="qor-layout__sidebar">
   <div class="sidebar-header">
-    {{t "qor_admin.layout.logo" "<a href=\"{{.Prefix}}\"><span class=\"visuallyhidden\">QOR</span></a><a href=\"/\" target=\"_blank\">View Site <i class=\"material-icons md-14\" aria-hidden=\"true\">open_in_new</i></a>" .Admin.GetRouter}}
+      <a href="{{.Admin.GetRouter}}"><span class="visuallyhidden">Bbox</span></a><a href="http://bbox.kiev.ua" target="_blank">Bbox v{{ current_version }}</a>
   </div>
   <div class="sidebar-userinfo">
     {{if .CurrentUser}}
@@ -16,6 +16,36 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    {{t "qor_admin.layout.powered_by" "Powered by <a href=\"http://getqor.com\" target=\"_blank\">QOR</a>"}}
+  <style>
+      .sel-switchlocale {
+          text-transform: none;
+          box-sizing: border-box;
+          box-shadow: none;
+          /*height: 32px;*/
+          border: 1px solid #03a9f4;
+          border-radius: 0;
+          width: 100%;
+      }
+  </style>
+  {{ $cl := current_locale .}}
+    <select id="switchLocale" class="sel-switchlocale">
+        <option {{ if (eq $cl "ru-RU") }}selected{{end}} value="/switch_locale?locale=ru-RU">Русский</option>
+        <option {{ if (eq $cl "uk-UA") }}selected{{end}} value="/switch_locale?locale=uk-UA">Український</option>
+        <option {{ if (eq $cl "pl") }}selected{{end}} value="/switch_locale?locale=pl">Polski</option>
+        <option {{ if (eq $cl "en-US") }}selected{{end}} value="/switch_locale?locale=en-US">English</option>
+    </select>
+    <script>
+    $(function(){
+        // bind change event to select
+        $('#switchLocale').on('change', function () {
+            var toUrl = $(this).val(); // get selected value
+            console.log('switch locale:' + toUrl);
+            if (toUrl) { // require a URL
+                window.location = toUrl; // redirect
+            }
+            return false;
+        });
+    });
+    </script>
   </div>
 </div>
