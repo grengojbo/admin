@@ -386,7 +386,7 @@
                 sizeData = $target.data(),
                 sizeName = sizeData.sizeName || 'original',
                 sizeResolution = sizeData.sizeResolution,
-                $clone = $('<img>').attr('src', sizeData.originalUrl),
+                $clone = $(`<img src=${sizeData.originalUrl}>`),
                 data = this.data || {},
                 _this = this,
                 sizeAspectRatio = NaN,
@@ -428,10 +428,10 @@
                 zoomable: false,
                 scalable: false,
                 rotatable: false,
-                checkImageOrigin: false,
                 autoCropArea: 1,
+                checkCrossOrigin: false,
 
-                built: function() {
+                ready: function() {
                     $modal
                         .find('.qor-cropper__options-toggle')
                         .on(EVENT_CLICK, function() {
@@ -451,7 +451,12 @@
                         _this.cropData = cropData;
 
                         if (croppedCanvas) {
-                            url = croppedCanvas.toDataURL();
+                            try {
+                                url = croppedCanvas.toDataURL();
+                            } catch (error) {
+                                console.log(error);
+                                console.log('Please check image Cross-origin setting');
+                            }
                         }
 
                         $modal.find(CLASS_OPTIONS + ' input').each(function() {
