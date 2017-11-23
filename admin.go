@@ -177,6 +177,7 @@ func (admin *Admin) newResource(value interface{}, config ...*Config) *Resource 
 func (admin *Admin) NewResource(value interface{}, config ...*Config) *Resource {
 	res := admin.newResource(value, config...)
 	res.Config.Invisible = true
+	res.Config.React = false
 	res.configure()
 	return res
 }

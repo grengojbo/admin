@@ -25,6 +25,7 @@ type Config struct {
 	Priority   int
 	Singleton  bool
 	Invisible  bool
+	React      bool
 	PageCount  int
 }
 
