@@ -186,17 +186,18 @@
         },
 
         crop: function($image) {
-            var options = this.options;
-            var url = $image.attr('src');
-            var originalUrl = url;
-            var $clone = $('<img>');
-            var $modal = this.$modal;
+            let options = this.options,
+                url = $image.attr('src'),
+                originalUrl = url,
+                $clone,
+                $modal = this.$modal;
 
             if ($.isFunction(options.replace)) {
                 originalUrl = options.replace(originalUrl);
             }
 
-            $clone.attr('src', originalUrl);
+            $clone = $(`<img src='${originalUrl}'>`);
+
             $modal
                 .one(EVENT_SHOWN, function() {
                     $clone.cropper({
@@ -208,7 +209,7 @@
                         rotatable: false,
                         checkImageOrigin: false,
 
-                        built: function() {
+                        ready: function() {
                             $modal.find(CLASS_SAVE).one(EVENT_CLICK, function() {
                                 var cropData = $clone.cropper('getData', true);
 
