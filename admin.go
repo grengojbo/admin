@@ -178,6 +178,7 @@ func (admin *Admin) NewResource(value interface{}, config ...*Config) *Resource 
 	res := admin.newResource(value, config...)
 	res.Config.Invisible = true
 	res.Config.React = false
+	res.Config.Detail = true
 	res.configure()
 	return res
 }
