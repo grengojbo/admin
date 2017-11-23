@@ -26,7 +26,7 @@ type Config struct {
 	Singleton  bool
 	Invisible  bool
 	React      bool
-	Detail     bool
+	NotDetail  bool
 	PageCount  int
 }
 
