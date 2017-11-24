@@ -24,12 +24,19 @@ $(function() {
     // ************************************ Refactor window.confirm ************************************
     $(document)
         .on('keyup.qor.confirm', function(e) {
+            if (!$dialog.is(':visible')) {
+                return;
+            }
             if (e.which === 27) {
-                if ($dialog.is(':visible')) {
-                    setTimeout(function() {
-                        $dialog.hide();
-                    }, 100);
-                }
+                setTimeout(function() {
+                    $dialog.hide();
+                    QOR.qorConfirmCallback = undefined;
+                }, 100);
+            }
+            if (e.which === 13) {
+                setTimeout(function() {
+                    $('.dialog-button[data-type="confirm"]').click();
+                }, 100);
             }
         })
         .on('click.qor.confirm', '.dialog-button', function() {
@@ -147,10 +154,12 @@ $(function() {
 
     // ********************************Qor Handle AJAX error********************
     QOR.handleAjaxError = function(err) {
-        let $error,
-            $body = $('body'),
+        let $body = $('body'),
             rJSON = err.responseJSON,
-            rText = err.responseText;
+            rText = err.responseText,
+            $error = $(`<ul class="qor-alert qor-error" data-dismissible="true"><button type="button" class="mdl-button mdl-button--icon" data-dismiss="alert">
+                            <i class="material-icons">close</i>
+                        </button></ul>`);
 
         $body.find('.qor-alert').remove();
 
@@ -159,9 +168,6 @@ $(function() {
                 let errors = rJSON.errors,
                     $errorContent = '';
 
-                $error = $(`<ul class="qor-alert qor-error" data-dismissible="true"><button type="button" class="mdl-button mdl-button--icon" data-dismiss="alert">
-                                <i class="material-icons">close</i>
-                            </button></ul>`);
                 for (let i = 0; i < errors.length; i++) {
                     $errorContent += `<li>
                                         <i class="material-icons">error</i>
@@ -172,17 +178,38 @@ $(function() {
             } else {
                 $error = $(rText).find('.qor-error');
             }
-
-            $error.prependTo($body);
-            setTimeout(function() {
-                $error.addClass('qor-alert__active');
-            }, 50);
-
-            setTimeout(function() {
-                $('.qor-alert[data-dismissible="true"]').removeClass('qor-alert__active');
-            }, 5000);
         } else {
-            window.alert('Server Error!');
+            $error.append(`<li>
+                            <i class="material-icons">error</i>
+                            <span>${err.statusText}</span>
+                        </li>`);
         }
+
+        $error.prependTo($body);
+        setTimeout(function() {
+            $error.addClass('qor-alert__active');
+        }, 50);
+
+        setTimeout(function() {
+            $('.qor-alert[data-dismissible="true"]').removeClass('qor-alert__active');
+            $('#qor-submit-loading').remove();
+        }, 6000);
+    };
+
+    QOR.xhrLoading = function() {
+        let xhr = new window.XMLHttpRequest();
+
+        xhr.upload.addEventListener(
+            'progress',
+            function(evt) {
+                if (evt.lengthComputable) {
+                    let percentComplete = evt.loaded / evt.total;
+
+                    $('.percent-complete').html(Math.ceil(percentComplete * 100) + '%');
+                }
+            },
+            false
+        );
+        return xhr;
     };
 });

@@ -73,17 +73,16 @@
 
         unbind: function() {
             this.$element
-                .off(EVENT_MOUSEENTER, CLASS_FIELD_SHOW, this.showEditButton)
-                .off(EVENT_MOUSELEAVE, CLASS_FIELD_SHOW, this.hideEditButton)
-                .off(EVENT_CLICK, CLASS_CANCEL, this.hideEdit)
-                .off(EVENT_CLICK, CLASS_SAVE, this.saveEdit)
-                .off(EVENT_CLICK, CLASS_EDIT, this.showEdit);
+                .off(EVENT_MOUSEENTER)
+                .off(EVENT_MOUSELEAVE)
+                .off(EVENT_CLICK);
         },
 
         showEditButton: function(e) {
-            let $edit = $(QorInlineEdit.TEMPLATE_EDIT);
+            let $edit = $(QorInlineEdit.TEMPLATE_EDIT),
+                $field = $(e.target).closest(CLASS_FIELD);
 
-            if ($(e.target).closest(CLASS_FIELD).find('input:disabled, textarea:disabled,select:disabled').length) {
+            if ($field.find('input:disabled, textarea:disabled,select:disabled').length) {
                 return false;
             }
 
@@ -95,14 +94,20 @@
         },
 
         showEdit: function(e) {
-            let $parent = $(e.target).closest(CLASS_EDIT).hide().closest(CLASS_FIELD).addClass(CLASS_CONTAINER),
+            let $parent = $(e.target)
+                    .closest(CLASS_EDIT)
+                    .hide()
+                    .closest(CLASS_FIELD)
+                    .addClass(CLASS_CONTAINER),
                 $save = $(this.TEMPLATE_SAVE);
 
             $save.appendTo($parent);
         },
 
         hideEdit: function() {
-            let $parent = $(this).closest(CLASS_FIELD).removeClass(CLASS_CONTAINER);
+            let $parent = $(this)
+                .closest(CLASS_FIELD)
+                .removeClass(CLASS_CONTAINER);
             $parent.find(CLASS_BUTTONS).remove();
         },
 
@@ -129,10 +134,11 @@
                     },
                     success: function(data) {
                         let newValue = getJsonData(names, data),
-                            $show = $parent.removeClass(CLASS_CONTAINER).find(CLASS_FIELD_SHOW);
+                            $show = $parent.removeClass(CLASS_CONTAINER).find(CLASS_FIELD_SHOW),
+                            $inner = $show.find(CLASS_FIELD_SHOW_INNER);
 
-                        if ($show.find(CLASS_FIELD_SHOW_INNER).length) {
-                            $show.find(CLASS_FIELD_SHOW_INNER).html(newValue);
+                        if ($inner.length) {
+                            $inner.html(newValue);
                         } else {
                             $show.html(newValue);
                         }
@@ -140,8 +146,8 @@
                         $parent.find(CLASS_BUTTONS).remove();
                         $btn.prop('disabled', false);
                     },
-                    error: function(xhr, textStatus, errorThrown) {
-                        window.alert([textStatus, errorThrown].join(': '));
+                    error: function(err) {
+                        window.QOR.handleAjaxError(err);
                         $btn.prop('disabled', false);
                     }
                 });

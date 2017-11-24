@@ -13,6 +13,7 @@
     'use strict';
 
     let FormData = window.FormData,
+        QOR = window.QOR,
         NAMESPACE = 'qor.selectcore',
         EVENT_SELECTCORE_BEFORESEND = 'selectcoreBeforeSend.' + NAMESPACE,
         EVENT_ONSELECT = 'afterSelected.' + NAMESPACE,
@@ -78,6 +79,7 @@
                 _this = this,
                 $submit = $form.find(':submit'),
                 data,
+                $loading = $(QOR.$formLoading),
                 onSubmit = this.options.onSubmit;
 
             $(document).trigger(EVENT_SELECTCORE_BEFORESEND);
@@ -91,12 +93,9 @@
                     dataType: 'json',
                     processData: false,
                     contentType: false,
+                    xhr: QOR.xhrLoading,
                     beforeSend: function() {
-                        $form
-                            .parent()
-                            .find('.qor-error')
-                            .remove();
-                        $submit.prop('disabled', true);
+                        $loading.appendTo($submit.prop('disabled', true).closest('.qor-form__actions')).trigger('enable.qor.material');
                     },
                     success: function(json) {
                         data = json;
@@ -112,7 +111,7 @@
                         }
                     },
                     error: function(err) {
-                        window.QOR.handleAjaxError(err);
+                        QOR.handleAjaxError(err);
                     },
                     complete: function() {
                         $submit.prop('disabled', false);
