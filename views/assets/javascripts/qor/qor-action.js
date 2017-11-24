@@ -244,7 +244,30 @@
                         _this.switchButtons($element, 1);
                     }
                 },
-                success: function(data, status, response) {
+                success: function(data) {
+                    // has undo action
+                    if (undoUrl) {
+                        $element.trigger(EVENT_UNDO, [$actionButton, isUndo, data]);
+                        isUndo ? $actionButton.removeClass(CLASS_IS_UNDO) : $actionButton.addClass(CLASS_IS_UNDO);
+                        $actionButton.prop('disabled', false);
+                        return;
+                    }
+
+                    window.location.reload();
+                },
+                error: function(err) {
+                    if (err.status == 200) {
+                        return;
+                    }
+                    if (undoUrl) {
+                        $actionButton.prop('disabled', false);
+                    } else if (needDisableButtons) {
+                        _this.switchButtons($element);
+                    }
+
+                    QOR.handleAjaxError(err);
+                },
+                complete: function(response) {
                     let contentType = response.getResponseHeader('content-type'),
                         disposition = response.getResponseHeader('Content-Disposition');
 
@@ -272,28 +295,7 @@
                         } else {
                             _this.switchButtons($element);
                         }
-
-                        return;
                     }
-
-                    // has undo action
-                    if (undoUrl) {
-                        $element.trigger(EVENT_UNDO, [$actionButton, isUndo, data]);
-                        isUndo ? $actionButton.removeClass(CLASS_IS_UNDO) : $actionButton.addClass(CLASS_IS_UNDO);
-                        $actionButton.prop('disabled', false);
-                        return;
-                    }
-
-                    window.location.reload();
-                },
-                error: function(err) {
-                    if (undoUrl) {
-                        $actionButton.prop('disabled', false);
-                    } else if (needDisableButtons) {
-                        _this.switchButtons($element);
-                    }
-
-                    QOR.handleAjaxError(err);
                 }
             });
         },
