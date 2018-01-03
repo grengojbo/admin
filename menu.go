@@ -15,13 +15,28 @@ func (admin Admin) GetMenus() []*Menu {
 // AddMenu add a menu to admin sidebar
 func (admin *Admin) AddMenu(menu *Menu) *Menu {
 	menu.router = admin.router
+
+	names := append(menu.Ancestors, menu.Name)
+	if old := admin.GetMenu(names...); old != nil {
+		if len(names) > 1 || len(old.Ancestors) == 0 {
+			old.Link = menu.Link
+			old.RelativePath = menu.RelativePath
+			old.Priority = menu.Priority
+			old.Permissioner = menu.Permissioner
+			old.Permission = menu.Permission
+			old.RelativePath = menu.RelativePath
+			*menu = *old
+			return old
+		}
+	}
+
 	admin.menus = appendMenu(admin.menus, menu.Ancestors, menu)
 	return menu
 }
 
 // GetMenu get sidebar menu with name
-func (admin Admin) GetMenu(name string) *Menu {
-	return getMenu(admin.menus, name)
+func (admin Admin) GetMenu(name ...string) *Menu {
+	return getMenu(admin.menus, name...)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -79,19 +94,26 @@ func (menu *Menu) GetSubMenus() []*Menu {
 	return menu.subMenus
 }
 
-func getMenu(menus []*Menu, name string) *Menu {
-	for _, m := range menus {
-		if m.Name == name {
-			return m
-		}
-
-		if len(m.subMenus) > 0 {
-			if mc := getMenu(m.subMenus, name); mc != nil {
-				return mc
+func getMenu(menus []*Menu, names ...string) *Menu {
+	if len(names) > 0 {
+		name := names[0]
+		for _, menu := range menus {
+			if len(names) > 1 {
+				if menu.Name == name {
+					return getMenu(menu.subMenus, names[1:]...)
+				}
+			} else {
+				if menu.Name == name {
+					return menu
+				}
+				if len(menu.subMenus) > 0 {
+					if m := getMenu(menu.subMenus, name); m != nil {
+						return m
+					}
+				}
 			}
 		}
 	}
-
 	return nil
 }
 
