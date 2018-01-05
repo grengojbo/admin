@@ -101,8 +101,8 @@
                     dataType: 'json',
                     processData: false,
                     contentType: false,
-                    xhr: QOR.xhrLoading,
                     beforeSend: function() {
+                        $('.qor-submit-loading').remove();
                         $loading.appendTo($submit.prop('disabled', true).closest('.qor-form__actions')).trigger('enable.qor.material');
                     },
                     success: function(json) {
