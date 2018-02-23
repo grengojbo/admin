@@ -446,6 +446,8 @@
                                 }
                             }
 
+                            $('#redactor-image-displaymode').remove();
+
                             this.link.description = '';
                             this.link.linkUrlText = '';
                             this.link.insertedTriggered = false;
