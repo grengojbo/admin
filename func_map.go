@@ -70,6 +70,13 @@ func (context *Context) FuncMap() template.FuncMap {
 			}
 		},
 
+		"to_map": func(values ...interface{}) map[string]interface{} {
+			results := map[string]interface{}{}
+			for i := 0; i < len(values)-1; i += 2 {
+				results[fmt.Sprint(values[i])] = values[i+1]
+			}
+			return results
+		},
 		"render":      context.Render,
 		"render_text": context.renderText,
 		"render_with": context.renderWith,
@@ -459,14 +466,16 @@ func (context *Context) renderSections(value interface{}, sections []*Section, p
 			})
 		}
 
-		var data = map[string]interface{}{
-			"Section": section,
-			"Title":   template.HTML(section.Title),
-			"Rows":    rows,
-		}
-		if content, err := context.Asset("metas/section.tmpl"); err == nil {
-			if tmpl, err := template.New("section").Funcs(context.FuncMap()).Parse(string(content)); err == nil {
-				tmpl.Execute(writer, data)
+		if len(rows) > 0 {
+			var data = map[string]interface{}{
+				"Section": section,
+				"Title":   template.HTML(section.Title),
+				"Rows":    rows,
+			}
+			if content, err := context.Asset("metas/section.tmpl"); err == nil {
+				if tmpl, err := template.New("section").Funcs(context.FuncMap()).Parse(string(content)); err == nil {
+					tmpl.Execute(writer, data)
+				}
 			}
 		}
 	}
@@ -1115,7 +1124,7 @@ func (context *Context) AllowedActions(actions []*Action, mode string, records .
 	var allowedActions []*Action
 	for _, action := range actions {
 		for _, m := range action.Modes {
-			if m == mode {
+			if m == mode || (m == "index" && mode == "batch") {
 				var permission = roles.Update
 				switch strings.ToUpper(action.Method) {
 				case "POST":
