@@ -19,12 +19,13 @@ import (
 // AdminConfig admin config struct
 type AdminConfig struct {
 	// SiteName set site's name, the name will be used as admin HTML title and admin interface will auto load javascripts, stylesheets files based on its value
-	SiteName       string
-	DB             *gorm.DB
-	Auth           Auth
-	AssetFS        assetfs.Interface
-	SessionManager session.ManagerInterface
-	I18n           I18n
+	SiteName        string
+	DB              *gorm.DB
+	Auth            Auth
+	AssetFS         assetfs.Interface
+	SessionManager  session.ManagerInterface
+	SettingsStorage SettingsStorageInterface
+	I18n            I18n
 	*Transformer
 }
 
@@ -67,7 +68,15 @@ func New(config interface{}) *Admin {
 		admin.AssetFS = assetfs.AssetFS().NameSpace("admin")
 	}
 
+	if admin.SettingsStorage == nil {
+		admin.SettingsStorage = newSettings(admin.AdminConfig.DB)
+	}
+
 	admin.SetAssetFS(admin.AssetFS)
+
+	if admin.AdminConfig.DB != nil {
+		admin.AdminConfig.DB.AutoMigrate(&QorAdminSetting{})
+	}
 
 	admin.registerCompositePrimaryKeyCallback()
 	return &admin

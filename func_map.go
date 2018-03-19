@@ -95,7 +95,17 @@ func (context *Context) FuncMap() template.FuncMap {
 			return template.HTML(result.String())
 		},
 		"render_filter": context.renderFilter,
-		"page_title":    context.pageTitle,
+		"saved_filters": context.savedFilters,
+		"has_filter": func() bool {
+			query := context.Request.URL.Query()
+			for key := range query {
+				if regexp.MustCompile("filter[(\\w+)]").MatchString(key) && query.Get(key) != "" {
+					return true
+				}
+			}
+			return false
+		},
+		"page_title": context.pageTitle,
 		"meta_label": func(meta *Meta) template.HTML {
 			key := fmt.Sprintf("%v.attributes.%v", meta.baseResource.ToParam(), meta.Label)
 			return context.Admin.T(context.Context, key, meta.Label)
@@ -518,6 +528,11 @@ func (context *Context) renderFilter(filter *Filter) template.HTML {
 	return template.HTML(result.String())
 }
 
+func (context *Context) savedFilters() (filters []SavedFilter) {
+	context.Admin.SettingsStorage.Get("saved_filters", &filters, context)
+	return
+}
+
 func (context *Context) renderMeta(meta *Meta, value interface{}, prefix []string, metaType string, writer *bytes.Buffer) {
 	var (
 		err      error
@@ -549,6 +564,12 @@ func (context *Context) renderMeta(meta *Meta, value interface{}, prefix []strin
 		}
 	}
 
+	funcsMap["has_change_permission"] = func(permissioner HasPermissioner) bool {
+		if context.GetDB().NewScope(value).PrimaryKeyZero() {
+			return context.hasCreatePermission(permissioner)
+		}
+		return context.hasUpdatePermission(permissioner)
+	}
 	funcsMap["render_nested_form"] = generateNestedRenderSections("form")
 
 	defer func() {
@@ -619,6 +640,10 @@ func (context *Context) renderMeta(meta *Meta, value interface{}, prefix []strin
 
 func (context *Context) isEqual(value interface{}, hasValue interface{}) bool {
 	var result string
+
+	if (value == nil || hasValue == nil) && (value != hasValue) {
+		return false
+	}
 
 	if reflect.Indirect(reflect.ValueOf(hasValue)).Kind() == reflect.Struct {
 		scope := &gorm.Scope{Value: hasValue}
