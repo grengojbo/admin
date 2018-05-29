@@ -415,6 +415,9 @@ func (context *Context) valueOf(valuer func(interface{}, *qor.Context) interface
 	if valuer != nil {
 		reflectValue := reflect.ValueOf(value)
 		if reflectValue.Kind() != reflect.Ptr {
+			if !reflectValue.IsValid() {
+				return nil
+			}
 			reflectPtr := reflect.New(reflectValue.Type())
 			reflectPtr.Elem().Set(reflectValue)
 			value = reflectPtr.Interface()
