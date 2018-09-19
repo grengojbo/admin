@@ -212,7 +212,7 @@ func (admin *Admin) AddResource(value interface{}, config ...*Config) *Resource 
 		if !res.Config.Singleton {
 			menuName = inflection.Plural(res.Name)
 		}
-		admin.AddMenu(&Menu{Name: menuName, Permissioner: res, Priority: res.Config.Priority, Ancestors: res.Config.Menu, RelativePath: res.ToParam()})
+		admin.AddMenu(&Menu{Name: menuName, IconName: res.Config.IconName, Permissioner: res, Priority: res.Config.Priority, Ancestors: res.Config.Menu, RelativePath: res.ToParam()})
 
 		admin.RegisterResourceRouters(res, "create", "update", "read", "delete")
 	}
