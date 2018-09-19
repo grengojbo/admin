@@ -20,7 +20,7 @@
         EVENT_ONSUBMIT = 'afterSubmitted.' + NAMESPACE,
         EVENT_CLICK = 'click.' + NAMESPACE,
         EVENT_SUBMIT = 'submit.' + NAMESPACE,
-        CLASS_TABLE = 'table tr',
+        CLASS_TABLE = 'table.qor-js-table tr',
         CLASS_FORM = 'form';
 
     function QorSelectCore(element, options) {
