@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"github.com/qor/cache/memory"
+	"github.com/sirupsen/logrus"
 	"html/template"
 	"path/filepath"
 	"reflect"
@@ -26,6 +28,8 @@ type AdminConfig struct {
 	SessionManager  session.ManagerInterface
 	SettingsStorage SettingsStorageInterface
 	I18n            I18n
+	Cache           *memory.Memory
+	Log             *logrus.Logger
 	*Transformer
 }
 
