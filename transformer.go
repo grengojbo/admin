@@ -129,7 +129,10 @@ func getFormats(request *http.Request) (formats []string) {
 		formats = append(formats, extensions...)
 	} else {
 		for _, accept := range strings.FieldsFunc(request.Header.Get("Accept"), func(s rune) bool { return string(s) == "," || string(s) == ";" }) {
-			if extensions, err := mime.ExtensionsByType(accept); err == nil {
+			if strings.ToLower(strings.TrimSpace(accept)) == "application/json" {
+				formats = append(formats, ".json")
+				return  formats
+			} else if extensions, err := mime.ExtensionsByType(accept); err == nil {
 				formats = append(formats, extensions...)
 			}
 		}
